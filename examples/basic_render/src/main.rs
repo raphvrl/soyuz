@@ -1,11 +1,13 @@
+use soyuz::Vertex;
 use soyuz::graphics::core::{
     buffer::{IndexBuffer, VertexBuffer},
     gpu::GpuContext,
-    pipeline::{PipelineBuilder, RenderPipeline, vertex_layout},
+    pipeline::{PipelineBuilder, RenderPipeline},
     render_pass::RenderPass,
     shader::Shader,
     surface::Surface,
 };
+
 use winit::{
     application::ApplicationHandler,
     event::*,
@@ -16,23 +18,10 @@ use winit::{
 use std::sync::Arc;
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Vertex)]
 struct Vertex {
     position: [f32; 2],
     color: [f32; 3],
-}
-
-impl Vertex {
-    const ATTRIBS: [wgpu::VertexAttribute; 2] =
-        wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x3];
-
-    fn desc() -> wgpu::VertexBufferLayout<'static> {
-        vertex_layout(
-            &Self::ATTRIBS,
-            std::mem::size_of::<Self>() as wgpu::BufferAddress,
-            wgpu::VertexStepMode::Vertex,
-        )
-    }
 }
 
 const VERTICES: [Vertex; 3] = [

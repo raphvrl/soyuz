@@ -749,6 +749,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "memoffset"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "488016bfae457b036d996092f6cb448677611ce4449e970ceaf42695203f218a"
+dependencies = [
+ "autocfg",
+]
+
+[[package]]
 name = "metal"
 version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1457,9 +1466,21 @@ version = "0.1.0"
 dependencies = [
  "bytemuck",
  "pollster",
+ "soyuz_macros",
  "thiserror 2.0.17",
  "wgpu",
  "winit",
+]
+
+[[package]]
+name = "soyuz_macros"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "memoffset",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

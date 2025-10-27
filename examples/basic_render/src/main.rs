@@ -87,10 +87,11 @@ impl App {
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
-        if let Some(state) = &mut self.state {
-            if width > 0 && height > 0 {
-                state.surface.resize(&state.gpu_context, width, height);
-            }
+        if let Some(state) = &mut self.state
+            && width > 0
+            && height > 0
+        {
+            state.surface.resize(&state.gpu_context, width, height);
         }
     }
 }
@@ -111,20 +112,20 @@ impl ApplicationHandler for App {
 
             let shader = Arc::new(
                 Shader::from_file(
-                    &gpu_context.device(),
+                    gpu_context.device(),
                     "examples/basic_render/src/shader.wgsl",
                 )
                 .unwrap(),
             );
 
             let vertex_buffer = VertexBuffer::new(
-                &gpu_context.device(),
+                gpu_context.device(),
                 Some("Triangle Vertex Buffer"),
                 &VERTICES,
             );
 
             let index_buffer = IndexBuffer::new_u16(
-                &gpu_context.device(),
+                gpu_context.device(),
                 Some("Triangle Index Buffer"),
                 &INDICES,
             );
@@ -135,7 +136,7 @@ impl ApplicationHandler for App {
                 .fragment_shader(Arc::clone(&shader), "fs_main")
                 .vertex_layout(Vertex::desc())
                 .color_target(surface.format())
-                .build(&gpu_context.device())
+                .build(gpu_context.device())
                 .unwrap();
 
             self.state = Some(State {

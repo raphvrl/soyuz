@@ -46,6 +46,12 @@ struct DepthStencilConfig {
     clear_stencil: Option<u32>,
 }
 
+impl<'a> Default for RenderPassBuilder<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> RenderPassBuilder<'a> {
     pub fn new() -> Self {
         Self {
@@ -95,7 +101,6 @@ impl<'a> RenderPassBuilder<'a> {
         color_target: &'a wgpu::TextureView,
         depth_stencil_target: Option<&'a wgpu::TextureView>,
     ) -> RenderPass<'a> {
-        let encoder = encoder;
         let color_attachment = wgpu::RenderPassColorAttachment {
             view: color_target,
             resolve_target: None,

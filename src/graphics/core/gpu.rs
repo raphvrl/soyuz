@@ -54,6 +54,12 @@ pub struct GpuContextBuilder {
     device_label: Option<String>,
 }
 
+impl Default for GpuContextBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GpuContextBuilder {
     pub fn new() -> Self {
         Self {

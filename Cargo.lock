@@ -1455,6 +1455,7 @@ dependencies = [
 name = "soyuz"
 version = "0.1.0"
 dependencies = [
+ "bytemuck",
  "pollster",
  "thiserror 2.0.17",
  "wgpu",

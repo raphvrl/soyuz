@@ -17,6 +17,21 @@ pub enum RenderError {
 
     #[error("Surface error: {0}")]
     SurfaceError(#[from] wgpu::SurfaceError),
+
+    #[error("Shader compilation failed: {0}")]
+    ShaderCompilation(String),
+
+    #[error("Pipeline creation failed: {0}")]
+    PipelineCreation(String),
+
+    #[error("Invalid pipeline configuration: {0}")]
+    InvalidPipelineConfiguration(String),
+
+    #[error("Missing vertex shader")]
+    MissingVertexShader,
+
+    #[error("Missing fragment shader")]
+    MissingFragmentShader,
 }
 
 pub type Result<T> = std::result::Result<T, RenderError>;

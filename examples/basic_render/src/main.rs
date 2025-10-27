@@ -1,4 +1,11 @@
-use soyuz::graphics::core::{gpu::GpuContext, render_pass::RenderPass, surface::Surface};
+use soyuz::graphics::core::{
+    buffer::{IndexBuffer, VertexBuffer},
+    gpu::GpuContext,
+    pipeline::{PipelineBuilder, RenderPipeline, vertex_layout},
+    render_pass::RenderPass,
+    shader::Shader,
+    surface::Surface,
+};
 use winit::{
     application::ApplicationHandler,
     event::*,
@@ -8,10 +15,50 @@ use winit::{
 
 use std::sync::Arc;
 
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+struct Vertex {
+    position: [f32; 2],
+    color: [f32; 3],
+}
+
+impl Vertex {
+    const ATTRIBS: [wgpu::VertexAttribute; 2] =
+        wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x3];
+
+    fn desc() -> wgpu::VertexBufferLayout<'static> {
+        vertex_layout(
+            &Self::ATTRIBS,
+            std::mem::size_of::<Self>() as wgpu::BufferAddress,
+            wgpu::VertexStepMode::Vertex,
+        )
+    }
+}
+
+const VERTICES: [Vertex; 3] = [
+    Vertex {
+        position: [-0.5, -0.5],
+        color: [1.0, 0.0, 0.0],
+    },
+    Vertex {
+        position: [0.5, -0.5],
+        color: [0.0, 1.0, 0.0],
+    },
+    Vertex {
+        position: [0.0, 0.5],
+        color: [0.0, 0.0, 1.0],
+    },
+];
+
+const INDICES: [u16; 3] = [0, 1, 2];
+
 struct State {
     window: Arc<Window>,
     gpu_context: GpuContext,
     surface: Surface,
+    pipeline: RenderPipeline,
+    vertex_buffer: VertexBuffer,
+    index_buffer: IndexBuffer,
 }
 
 struct App {
@@ -34,10 +81,15 @@ impl App {
                 .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
 
             {
-                let _render_pass = RenderPass::builder()
-                    .label("Clear Render Pass")
-                    .clear_color(0.0, 0.0, 0.0, 1.0)
+                let mut render_pass = RenderPass::builder()
+                    .label("Triangle Render Pass")
+                    .clear_color(0.1, 0.1, 0.1, 1.0)
                     .begin(&mut encoder, &view, None);
+
+                render_pass.set_pipeline(&state.pipeline);
+                render_pass.set_vertex_buffer(&state.vertex_buffer);
+                render_pass.set_index_buffer(&state.index_buffer);
+                render_pass.draw_indexed(0..state.index_buffer.count(), 0, 0..1);
             }
 
             state.gpu_context.queue().submit(Some(encoder.finish()));
@@ -68,10 +120,42 @@ impl ApplicationHandler for App {
 
             let surface = Surface::new(window.clone(), &gpu_context).unwrap();
 
+            let shader = Arc::new(
+                Shader::from_file(
+                    &gpu_context.device(),
+                    "examples/basic_render/src/shader.wgsl",
+                )
+                .unwrap(),
+            );
+
+            let vertex_buffer = VertexBuffer::new(
+                &gpu_context.device(),
+                Some("Triangle Vertex Buffer"),
+                &VERTICES,
+            );
+
+            let index_buffer = IndexBuffer::new_u16(
+                &gpu_context.device(),
+                Some("Triangle Index Buffer"),
+                &INDICES,
+            );
+
+            let pipeline = PipelineBuilder::new()
+                .label("Triangle Pipeline")
+                .vertex_shader(Arc::clone(&shader), "vs_main")
+                .fragment_shader(Arc::clone(&shader), "fs_main")
+                .vertex_layout(Vertex::desc())
+                .color_target(surface.format())
+                .build(&gpu_context.device())
+                .unwrap();
+
             self.state = Some(State {
                 window: window.clone(),
                 gpu_context,
                 surface,
+                pipeline,
+                vertex_buffer,
+                index_buffer,
             });
         }
     }

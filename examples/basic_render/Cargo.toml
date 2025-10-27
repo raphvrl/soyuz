@@ -8,3 +8,4 @@ soyuz = { path = "../../" }
 winit = "0.30.12"
 wgpu = "27.0.1"
 pollster = "0.4.0"
+bytemuck = { version = "1.13", features = ["derive"] }

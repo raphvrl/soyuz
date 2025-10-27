@@ -1,5 +1,9 @@
 use std::ops::Range;
 
+use super::buffer::IndexBuffer;
+use super::buffer::VertexBuffer;
+use super::pipeline::RenderPipeline;
+
 pub struct RenderPass<'a> {
     pass: wgpu::RenderPass<'a>,
 }
@@ -9,8 +13,25 @@ impl<'a> RenderPass<'a> {
         RenderPassBuilder::new()
     }
 
+    pub fn set_pipeline(&mut self, pipeline: &RenderPipeline) {
+        self.pass.set_pipeline(pipeline.raw());
+    }
+
+    pub fn set_vertex_buffer(&mut self, vertex_buffer: &VertexBuffer) {
+        self.pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+    }
+
+    pub fn set_index_buffer(&mut self, index_buffer: &IndexBuffer) {
+        self.pass
+            .set_index_buffer(index_buffer.slice(..), index_buffer.format());
+    }
+
     pub fn draw(&mut self, vertices: Range<u32>, instances: Range<u32>) {
         self.pass.draw(vertices, instances);
+    }
+
+    pub fn draw_indexed(&mut self, indices: Range<u32>, base_vertex: i32, instances: Range<u32>) {
+        self.pass.draw_indexed(indices, base_vertex, instances);
     }
 }
 

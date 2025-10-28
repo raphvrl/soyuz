@@ -33,6 +33,15 @@ impl<'a> RenderPass<'a> {
     pub fn draw_indexed(&mut self, indices: Range<u32>, base_vertex: i32, instances: Range<u32>) {
         self.pass.draw_indexed(indices, base_vertex, instances);
     }
+
+    pub fn set_bind_group(
+        &mut self,
+        index: u32,
+        bind_group: &wgpu::BindGroup,
+        offsets: &[wgpu::DynamicOffset],
+    ) {
+        self.pass.set_bind_group(index, bind_group, offsets);
+    }
 }
 
 pub struct RenderPassBuilder<'a> {

@@ -10,6 +10,8 @@ wgpu = "27.0.1"
 winit = "0.30.12"
 bytemuck = { version = "1.24.0", features = ["derive"] }
 soyuz_macros = { path = "./macros" }
+glam = "0.30.8"
+image = "0.25"
 
 [[example]]
 name = "basic_render"

@@ -102,6 +102,11 @@ impl PipelineBuilder {
         self
     }
 
+    pub fn raw_bind_group_layout(mut self, layout: &wgpu::BindGroupLayout) -> Self {
+        self.bind_group_layouts.push(layout.clone());
+        self
+    }
+
     pub fn push_constant_range(mut self, range: wgpu::PushConstantRange) -> Self {
         self.push_constant_ranges.push(range);
         self

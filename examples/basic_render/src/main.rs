@@ -1,439 +1,282 @@
-use soyuz::Vertex;
+use glam::{Mat4, Vec3};
+use soyuz::engine::app::App;
+use soyuz::engine::render::RenderSystem;
 use soyuz::graphics::Camera;
-use soyuz::graphics::core::{
-    buffer::{IndexBuffer, UniformBuffer, VertexBuffer},
-    gpu::GpuContext,
-    pipeline::{PipelineBuilder, RenderPipeline},
-    render_pass::RenderPass,
-    shader::Shader,
-    surface::Surface,
-};
-use soyuz::graphics::resources::{Texture, TextureSampler};
-
-use winit::{
-    application::ApplicationHandler,
-    event::*,
-    event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
-    window::{Window, WindowId},
-};
-
-use glam::Mat4;
+use soyuz::graphics::core::bind_group::BindGroupBuilder;
+use soyuz::graphics::core::buffer::{IndexBuffer, UniformBuffer, VertexBuffer};
+use soyuz::graphics::core::pipeline::{PipelineBuilder, RenderPipeline};
+use soyuz::graphics::core::render_pass::RenderPass;
+use soyuz::graphics::core::shader::Shader;
+use soyuz::graphics::core::{GpuContext, Surface};
+use soyuz::graphics::resources::Texture;
 use std::sync::Arc;
+use winit::window::Window;
 
 #[repr(C)]
-#[derive(Vertex)]
-struct Vertex {
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct CubeVertex {
     position: [f32; 3],
-    uv: [f32; 2],
+    color: [f32; 3],
 }
 
-const VERTICES: [Vertex; 24] = [
-    Vertex {
-        position: [-0.5, -0.5, 0.5],
-        uv: [0.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, -0.5, 0.5],
-        uv: [1.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, 0.5, 0.5],
-        uv: [1.0, 1.0],
-    },
-    Vertex {
-        position: [-0.5, 0.5, 0.5],
-        uv: [0.0, 1.0],
-    },
-    Vertex {
-        position: [0.5, -0.5, -0.5],
-        uv: [0.0, 0.0],
-    },
-    Vertex {
-        position: [-0.5, -0.5, -0.5],
-        uv: [1.0, 0.0],
-    },
-    Vertex {
-        position: [-0.5, 0.5, -0.5],
-        uv: [1.0, 1.0],
-    },
-    Vertex {
-        position: [0.5, 0.5, -0.5],
-        uv: [0.0, 1.0],
-    },
-    Vertex {
-        position: [-0.5, -0.5, -0.5],
-        uv: [0.0, 0.0],
-    },
-    Vertex {
-        position: [-0.5, -0.5, 0.5],
-        uv: [1.0, 0.0],
-    },
-    Vertex {
-        position: [-0.5, 0.5, 0.5],
-        uv: [1.0, 1.0],
-    },
-    Vertex {
-        position: [-0.5, 0.5, -0.5],
-        uv: [0.0, 1.0],
-    },
-    Vertex {
-        position: [0.5, -0.5, 0.5],
-        uv: [0.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, -0.5, -0.5],
-        uv: [1.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, 0.5, -0.5],
-        uv: [1.0, 1.0],
-    },
-    Vertex {
-        position: [0.5, 0.5, 0.5],
-        uv: [0.0, 1.0],
-    },
-    Vertex {
-        position: [-0.5, -0.5, -0.5],
-        uv: [0.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, -0.5, -0.5],
-        uv: [1.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, -0.5, 0.5],
-        uv: [1.0, 1.0],
-    },
-    Vertex {
-        position: [-0.5, -0.5, 0.5],
-        uv: [0.0, 1.0],
-    },
-    Vertex {
-        position: [-0.5, 0.5, 0.5],
-        uv: [0.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, 0.5, 0.5],
-        uv: [1.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, 0.5, -0.5],
-        uv: [1.0, 1.0],
-    },
-    Vertex {
-        position: [-0.5, 0.5, -0.5],
-        uv: [0.0, 1.0],
-    },
-];
-
-#[rustfmt::skip]
-const INDICES: [u16; 36] = [
-    0, 1, 2, 2, 3, 0,
-    4, 5, 6, 6, 7, 4,
-    8, 9, 10, 10, 11, 8,
-    12, 13, 14, 14, 15, 12,
-    16, 17, 18, 18, 19, 16,
-    20, 21, 22, 22, 23, 20,
-];
-
-struct State {
-    window: Arc<Window>,
-    gpu_context: GpuContext,
-    surface: Surface,
-    pipeline: RenderPipeline,
-    vertex_buffer: VertexBuffer,
-    index_buffer: IndexBuffer,
-    camera: Camera,
-    uniform_buffer: UniformBuffer,
-    texture: Texture,
-    sampler: TextureSampler,
-    depth_texture: Texture,
-    rotation_angle: f32,
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct TransformUniform {
+    transform: [[f32; 4]; 4],
 }
 
-struct App {
-    state: Option<State>,
-}
-
-impl App {
-    fn new() -> Self {
-        Self { state: None }
+impl From<Mat4> for TransformUniform {
+    fn from(matrix: Mat4) -> Self {
+        Self {
+            transform: matrix.to_cols_array_2d(),
+        }
     }
+}
 
-    pub fn render(&mut self) {
-        if let Some(state) = &mut self.state {
-            state.rotation_angle += 0.02;
-
-            let model_matrix = Mat4::from_rotation_y(state.rotation_angle);
-
-            state.camera.update();
-
-            let view_proj = state.camera.view_proj_matrix();
-            let model_view_proj = *view_proj * model_matrix;
-
-            let uniform_data = model_view_proj.to_cols_array();
-
-            state
-                .uniform_buffer
-                .write(state.gpu_context.queue(), &uniform_data);
-
-            let bind_group_layout = state.gpu_context.device().create_bind_group_layout(
-                &wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Transform Bind Group Layout"),
-                    entries: &[
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 0,
-                            visibility: wgpu::ShaderStages::VERTEX,
-                            ty: wgpu::BindingType::Buffer {
-                                ty: wgpu::BufferBindingType::Uniform,
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
-                            },
-                            count: None,
-                        },
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 1,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Texture {
-                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                                view_dimension: wgpu::TextureViewDimension::D2,
-                                multisampled: false,
-                            },
-                            count: None,
-                        },
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 2,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                            count: None,
-                        },
-                    ],
+impl CubeVertex {
+    fn vertex_layout() -> wgpu::VertexBufferLayout<'static> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<CubeVertex>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 0,
+                    format: wgpu::VertexFormat::Float32x3,
                 },
-            );
-
-            let bind_group =
-                state
-                    .gpu_context
-                    .device()
-                    .create_bind_group(&wgpu::BindGroupDescriptor {
-                        label: Some("Transform Bind Group"),
-                        layout: &bind_group_layout,
-                        entries: &[
-                            wgpu::BindGroupEntry {
-                                binding: 0,
-                                resource: state.uniform_buffer.raw().as_entire_binding(),
-                            },
-                            wgpu::BindGroupEntry {
-                                binding: 1,
-                                resource: wgpu::BindingResource::TextureView(state.texture.view()),
-                            },
-                            wgpu::BindGroupEntry {
-                                binding: 2,
-                                resource: wgpu::BindingResource::Sampler(state.sampler.raw()),
-                            },
-                        ],
-                    });
-
-            let output = state.surface.get_current_texture().unwrap();
-            let view = output.create_view();
-
-            let mut encoder = state
-                .gpu_context
-                .device()
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
-
-            {
-                let mut render_pass = RenderPass::builder()
-                    .label("Cube Render Pass")
-                    .clear_color(0.0, 0.0, 0.0, 1.0)
-                    .clear_depth(1.0)
-                    .begin(&mut encoder, &view, Some(state.depth_texture.view()));
-
-                render_pass.set_pipeline(&state.pipeline);
-                render_pass.set_vertex_buffer(&state.vertex_buffer);
-                render_pass.set_index_buffer(&state.index_buffer);
-                render_pass.set_bind_group(0, &bind_group, &[]);
-                render_pass.draw_indexed(0..state.index_buffer.count(), 0, 0..1);
-            }
-
-            state.gpu_context.queue().submit(Some(encoder.finish()));
-            output.present();
-        }
-    }
-
-    pub fn resize(&mut self, width: u32, height: u32) {
-        if let Some(state) = &mut self.state
-            && width > 0
-            && height > 0
-        {
-            state.surface.resize(&state.gpu_context, width, height);
-            state.camera.set_aspect_ratio(width as f32 / height as f32);
-            state
-                .depth_texture
-                .resize(state.gpu_context.device(), width, height);
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    shader_location: 1,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+            ],
         }
     }
 }
 
-impl ApplicationHandler for App {
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        if self.state.is_none() {
-            let window_attributes = Window::default_attributes()
-                .with_title("Soyuz - Basic Render")
-                .with_inner_size(winit::dpi::LogicalSize::new(800, 600));
+struct BasicRenderSystem {
+    pipeline: Option<RenderPipeline>,
+    vertex_buffer: Option<VertexBuffer>,
+    index_buffer: Option<IndexBuffer>,
+    uniform_buffer: Option<UniformBuffer>,
+    bind_group: Option<wgpu::BindGroup>,
+    depth_texture: Option<Texture>,
+    camera: Option<Camera>,
+    start_time: std::time::Instant,
+}
 
-            let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
-
-            let gpu_context =
-                pollster::block_on(async { GpuContext::builder().build().await.unwrap() });
-
-            let surface = Surface::new(window.clone(), &gpu_context).unwrap();
-
-            let shader = Arc::new(
-                Shader::from_file(
-                    gpu_context.device(),
-                    "examples/basic_render/src/shader.wgsl",
-                )
-                .unwrap(),
-            );
-
-            let vertex_buffer = VertexBuffer::new(
-                gpu_context.device(),
-                Some("Triangle Vertex Buffer"),
-                &VERTICES,
-            );
-
-            let index_buffer = IndexBuffer::new_u16(
-                gpu_context.device(),
-                Some("Triangle Index Buffer"),
-                &INDICES,
-            );
-
-            let camera = Camera::new_perspective(
-                45.0,
-                window.inner_size().width as f32 / window.inner_size().height as f32,
-                0.1,
-                100.0,
-            );
-
-            let uniform_buffer = UniformBuffer::new(
-                gpu_context.device(),
-                Some("Camera Uniform Buffer"),
-                &[0.0f32; 32],
-            );
-
-            let img = image::open("examples/basic_render/src/image.png").unwrap();
-
-            let texture = Texture::from_image(
-                gpu_context.device(),
-                gpu_context.queue(),
-                img,
-                Some("Cube Texture"),
-            );
-
-            let sampler = TextureSampler::linear(gpu_context.device(), Some("Cube Sampler"));
-
-            let window_size = window.inner_size();
-            let depth_texture = Texture::new_depth_texture(
-                gpu_context.device(),
-                window_size.width,
-                window_size.height,
-                Some("Depth Texture"),
-            );
-
-            let bind_group_layout =
-                gpu_context
-                    .device()
-                    .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                        label: Some("Transform Bind Group Layout"),
-                        entries: &[
-                            wgpu::BindGroupLayoutEntry {
-                                binding: 0,
-                                visibility: wgpu::ShaderStages::VERTEX,
-                                ty: wgpu::BindingType::Buffer {
-                                    ty: wgpu::BufferBindingType::Uniform,
-                                    has_dynamic_offset: false,
-                                    min_binding_size: None,
-                                },
-                                count: None,
-                            },
-                            wgpu::BindGroupLayoutEntry {
-                                binding: 1,
-                                visibility: wgpu::ShaderStages::FRAGMENT,
-                                ty: wgpu::BindingType::Texture {
-                                    sample_type: wgpu::TextureSampleType::Float {
-                                        filterable: true,
-                                    },
-                                    view_dimension: wgpu::TextureViewDimension::D2,
-                                    multisampled: false,
-                                },
-                                count: None,
-                            },
-                            wgpu::BindGroupLayoutEntry {
-                                binding: 2,
-                                visibility: wgpu::ShaderStages::FRAGMENT,
-                                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                                count: None,
-                            },
-                        ],
-                    });
-
-            let pipeline = PipelineBuilder::new()
-                .label("Cube Pipeline")
-                .vertex_shader(Arc::clone(&shader), "vs_main")
-                .fragment_shader(Arc::clone(&shader), "fs_main")
-                .vertex_layout(Vertex::desc())
-                .raw_bind_group_layout(&bind_group_layout)
-                .color_target(surface.format())
-                .depth_stencil(wgpu::TextureFormat::Depth32Float)
-                .build(gpu_context.device())
-                .unwrap();
-
-            self.state = Some(State {
-                window: window.clone(),
-                gpu_context,
-                surface,
-                pipeline,
-                vertex_buffer,
-                index_buffer,
-                camera,
-                uniform_buffer,
-                texture,
-                sampler,
-                depth_texture,
-                rotation_angle: 0.0,
-            });
+impl BasicRenderSystem {
+    fn new() -> Self {
+        Self {
+            pipeline: None,
+            vertex_buffer: None,
+            index_buffer: None,
+            uniform_buffer: None,
+            bind_group: None,
+            depth_texture: None,
+            camera: None,
+            start_time: std::time::Instant::now(),
         }
     }
+}
 
-    fn window_event(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        _window_id: WindowId,
-        event: WindowEvent,
-    ) {
-        match event {
-            WindowEvent::CloseRequested => {
-                event_loop.exit();
+impl RenderSystem for BasicRenderSystem {
+    fn init(&mut self, gpu_context: &GpuContext, surface: &Surface) {
+        let shader = Shader::from_file(
+            gpu_context.device(),
+            "examples/basic_render/src/shader.wgsl",
+        )
+        .expect("Failed to load shader");
+
+        let vertices = vec![
+            CubeVertex {
+                position: [-0.5, -0.5, 0.5],
+                color: [1.0, 0.0, 0.0],
+            },
+            CubeVertex {
+                position: [0.5, -0.5, 0.5],
+                color: [0.0, 1.0, 0.0],
+            },
+            CubeVertex {
+                position: [0.5, 0.5, 0.5],
+                color: [0.0, 0.0, 1.0],
+            },
+            CubeVertex {
+                position: [-0.5, 0.5, 0.5],
+                color: [1.0, 1.0, 0.0],
+            },
+            CubeVertex {
+                position: [-0.5, -0.5, -0.5],
+                color: [1.0, 0.0, 1.0],
+            },
+            CubeVertex {
+                position: [0.5, -0.5, -0.5],
+                color: [0.0, 1.0, 1.0],
+            },
+            CubeVertex {
+                position: [0.5, 0.5, -0.5],
+                color: [1.0, 1.0, 1.0],
+            },
+            CubeVertex {
+                position: [-0.5, 0.5, -0.5],
+                color: [0.5, 0.5, 0.5],
+            },
+        ];
+
+        #[rustfmt::skip]
+        let indices: Vec<u16> = vec![
+            0, 1, 2, 2, 3, 0,
+            1, 5, 6, 6, 2, 1,
+            5, 4, 7, 7, 6, 5,
+            4, 0, 3, 3, 7, 4,
+            3, 2, 6, 6, 7, 3,
+            4, 5, 1, 1, 0, 4,
+        ];
+
+        self.vertex_buffer = Some(VertexBuffer::new(
+            gpu_context.device(),
+            Some("Cube Vertex Buffer"),
+            &vertices,
+        ));
+
+        self.index_buffer = Some(IndexBuffer::new_u16(
+            gpu_context.device(),
+            Some("Cube Index Buffer"),
+            &indices,
+        ));
+
+        self.uniform_buffer = Some(UniformBuffer::new(
+            gpu_context.device(),
+            Some("Transform Uniform Buffer"),
+            &[TransformUniform::from(Mat4::IDENTITY)],
+        ));
+
+        self.camera = Some(Camera::new_perspective(45.0, 1280.0 / 720.0, 0.1, 100.0));
+        if let Some(camera) = &mut self.camera {
+            camera.set_position(Vec3::new(0.0, 0.0, 2.0));
+            camera.set_target(Vec3::new(0.0, 0.0, 0.0));
+        }
+
+        let depth_texture =
+            Texture::new_depth_texture(gpu_context.device(), 1280, 720, Some("Depth Texture"));
+
+        self.depth_texture = Some(depth_texture);
+
+        let bind_group_layout = BindGroupBuilder::new()
+            .uniform(0, wgpu::ShaderStages::VERTEX)
+            .layout_only(gpu_context.device());
+
+        if let Some(uniform_buffer) = &self.uniform_buffer {
+            let bind_group = gpu_context
+                .device()
+                .create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("Transform Bind Group"),
+                    layout: &bind_group_layout,
+                    entries: &[wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: uniform_buffer.raw().as_entire_binding(),
+                    }],
+                });
+
+            self.bind_group = Some(bind_group);
+        }
+
+        let vertex_layout = CubeVertex::vertex_layout();
+        let shader_arc = Arc::new(shader);
+
+        let pipeline = PipelineBuilder::new()
+            .vertex_shader(shader_arc.clone(), "vs_main")
+            .fragment_shader(shader_arc, "fs_main")
+            .vertex_layouts(&[vertex_layout])
+            .raw_bind_group_layout(&bind_group_layout)
+            .color_target(surface.format())
+            .topology(wgpu::PrimitiveTopology::TriangleList)
+            .front_face(wgpu::FrontFace::Ccw)
+            .cull_mode(Some(wgpu::Face::Back))
+            .polygon_mode(wgpu::PolygonMode::Fill)
+            .depth_stencil(wgpu::TextureFormat::Depth32Float)
+            .build(gpu_context.device())
+            .expect("Failed to create pipeline");
+
+        self.pipeline = Some(pipeline);
+    }
+
+    fn render(&mut self, gpu_context: &GpuContext, surface: &Surface, _window: &Arc<Window>) {
+        let surface_texture = match surface.get_current_texture() {
+            Ok(texture) => texture,
+            Err(_) => return,
+        };
+
+        let view = surface_texture
+            .texture()
+            .create_view(&wgpu::TextureViewDescriptor::default());
+
+        let elapsed = self.start_time.elapsed().as_secs_f32();
+        let rotation = Mat4::from_rotation_y(elapsed) * Mat4::from_rotation_x(elapsed * 0.7);
+
+        if let Some(camera) = &mut self.camera {
+            camera.update();
+            let view_proj = camera.view_proj_matrix();
+            let transform = view_proj * rotation;
+
+            if let Some(uniform_buffer) = &self.uniform_buffer {
+                uniform_buffer.write(gpu_context.queue(), &[TransformUniform::from(transform)]);
             }
-            WindowEvent::RedrawRequested => {
-                self.render();
-                if let Some(state) = &self.state {
-                    state.window.request_redraw();
+        }
+
+        let mut encoder =
+            gpu_context
+                .device()
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Render Encoder"),
+                });
+
+        {
+            let depth_view = self.depth_texture.as_ref().unwrap().view();
+            let mut render_pass = RenderPass::builder()
+                .clear_color(0.0, 0.0, 0.0, 1.0)
+                .clear_depth(1.0)
+                .begin(&mut encoder, &view, Some(depth_view));
+
+            if let Some(pipeline) = &self.pipeline {
+                render_pass.set_pipeline(pipeline);
+
+                if let Some(bind_group) = &self.bind_group {
+                    render_pass.set_bind_group(0, bind_group, &[]);
                 }
+
+                if let Some(vertex_buffer) = &self.vertex_buffer {
+                    render_pass.set_vertex_buffer(vertex_buffer);
+                }
+
+                if let Some(index_buffer) = &self.index_buffer {
+                    render_pass.set_index_buffer(index_buffer);
+                }
+
+                render_pass.draw_indexed(0..36, 0, 0..1);
             }
-            WindowEvent::Resized(physical_size) => {
-                self.resize(physical_size.width, physical_size.height);
-            }
-            _ => {}
+        }
+
+        gpu_context.queue().submit(Some(encoder.finish()));
+        surface_texture.present();
+    }
+
+    fn resize(&mut self, gpu_context: &GpuContext, width: u32, height: u32) {
+        if let Some(camera) = &mut self.camera {
+            camera.set_aspect_ratio(width as f32 / height as f32);
+        }
+
+        if let Some(depth_texture) = &mut self.depth_texture {
+            depth_texture.resize(gpu_context.device(), width, height);
         }
     }
 }
 
 fn main() {
-    let event_loop = EventLoop::new().unwrap();
-    event_loop.set_control_flow(ControlFlow::Poll);
+    let render_system = BasicRenderSystem::new();
 
-    let mut app = App::new();
-    event_loop.run_app(&mut app).unwrap();
+    App::new()
+        .with_title("Basic Render - Cube")
+        .with_size(1280, 720)
+        .run(render_system);
 }

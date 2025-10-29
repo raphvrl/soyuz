@@ -1,5 +1,6 @@
 use super::Buffer;
 
+#[derive(Clone)]
 pub struct IndexBuffer {
     buffer: Buffer,
     format: wgpu::IndexFormat,

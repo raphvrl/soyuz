@@ -60,8 +60,9 @@ impl ProjectionType {
 
 pub struct Camera {
     pub position: Vec3,
-    pub target: Vec3,
     pub up: Vec3,
+    pub yaw: f32,
+    pub pitch: f32,
 
     projection: ProjectionType,
     view_matrix: Mat4,
@@ -73,7 +74,8 @@ pub struct Camera {
 impl Camera {
     pub fn new_perspective(fov: f32, aspect: f32, near: f32, far: f32) -> Self {
         let position = Vec3::new(0.0, 0.0, 5.0);
-        let target = Vec3::ZERO;
+        let yaw: f32 = -90.0;
+        let pitch: f32 = 0.0;
         let up = Vec3::Y;
 
         let projection = ProjectionType::Perspective {
@@ -84,12 +86,14 @@ impl Camera {
         };
 
         let projection_matrix = projection.to_matrix();
-        let view_matrix = Self::compute_view_matrix(&position, &target, &up);
+        let view_matrix =
+            Self::compute_view_matrix(&position, yaw.to_radians(), pitch.to_radians(), &up);
         let view_proj_matrix = projection_matrix * view_matrix;
 
         Self {
             position,
-            target,
+            yaw,
+            pitch,
             up,
             projection,
             view_matrix,
@@ -101,7 +105,8 @@ impl Camera {
 
     pub fn new_orthographic(width: f32, height: f32, near: f32, far: f32) -> Self {
         let position = Vec3::new(0.0, 0.0, 0.0);
-        let target = Vec3::ZERO;
+        let yaw_degrees: f32 = -90.0;
+        let pitch_degrees: f32 = 0.0;
         let up = Vec3::Y;
 
         let projection = ProjectionType::Orthographic {
@@ -112,12 +117,18 @@ impl Camera {
         };
 
         let projection_matrix = projection.to_matrix();
-        let view_matrix = Self::compute_view_matrix(&position, &target, &up);
+        let view_matrix = Self::compute_view_matrix(
+            &position,
+            yaw_degrees.to_radians(),
+            pitch_degrees.to_radians(),
+            &up,
+        );
         let view_proj_matrix = projection_matrix * view_matrix;
 
         Self {
             position,
-            target,
+            yaw: yaw_degrees,
+            pitch: pitch_degrees,
             up,
             projection,
             view_matrix,
@@ -129,7 +140,8 @@ impl Camera {
 
     pub fn new_frustum(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32) -> Self {
         let position = Vec3::new(0.0, 0.0, 0.0);
-        let target = Vec3::ZERO;
+        let yaw_degrees: f32 = -90.0;
+        let pitch_degrees: f32 = 0.0;
         let up = Vec3::Y;
 
         let projection = ProjectionType::Frustum {
@@ -142,12 +154,18 @@ impl Camera {
         };
 
         let projection_matrix = projection.to_matrix();
-        let view_matrix = Self::compute_view_matrix(&position, &target, &up);
+        let view_matrix = Self::compute_view_matrix(
+            &position,
+            yaw_degrees.to_radians(),
+            pitch_degrees.to_radians(),
+            &up,
+        );
         let view_proj_matrix = projection_matrix * view_matrix;
 
         Self {
             position,
-            target,
+            yaw: yaw_degrees,
+            pitch: pitch_degrees,
             up,
             projection,
             view_matrix,
@@ -157,8 +175,36 @@ impl Camera {
         }
     }
 
-    fn compute_view_matrix(position: &Vec3, target: &Vec3, up: &Vec3) -> Mat4 {
-        Mat4::look_at_rh(*position, *target, *up)
+    pub fn rotate(&mut self, x_offset_degrees: f32, y_offset_degrees: f32) {
+        self.yaw += x_offset_degrees;
+        self.pitch -= y_offset_degrees.clamp(-89.0, 89.0);
+        self.dirty = true;
+    }
+
+    pub fn forward(&self) -> Vec3 {
+        let yaw_rad = self.yaw.to_radians();
+        let pitch_rad = self.pitch.to_radians();
+        Vec3::new(
+            yaw_rad.cos() * pitch_rad.cos(),
+            pitch_rad.sin(),
+            yaw_rad.sin() * pitch_rad.cos(),
+        )
+        .normalize()
+    }
+
+    pub fn right(&self) -> Vec3 {
+        self.forward().cross(self.up).normalize()
+    }
+
+    fn compute_view_matrix(position: &Vec3, yaw_rad: f32, pitch_rad: f32, up: &Vec3) -> Mat4 {
+        let forward = Vec3::new(
+            yaw_rad.cos() * pitch_rad.cos(),
+            pitch_rad.sin(),
+            yaw_rad.sin() * pitch_rad.cos(),
+        )
+        .normalize();
+        let target = *position + forward;
+        Mat4::look_at_rh(*position, target, *up)
     }
 
     pub fn set_position(&mut self, position: Vec3) {
@@ -171,19 +217,7 @@ impl Camera {
         self.dirty = true;
     }
 
-    pub fn set_target(&mut self, target: Vec3) {
-        self.target = target;
-        self.dirty = true;
-    }
-
     pub fn set_up(&mut self, up: Vec3) {
-        self.up = up;
-        self.dirty = true;
-    }
-
-    pub fn look_at(&mut self, position: Vec3, target: Vec3, up: Vec3) {
-        self.position = position;
-        self.target = target;
         self.up = up;
         self.dirty = true;
     }
@@ -222,7 +256,12 @@ impl Camera {
 
     pub fn update(&mut self) {
         if self.dirty {
-            self.view_matrix = Self::compute_view_matrix(&self.position, &self.target, &self.up);
+            self.view_matrix = Self::compute_view_matrix(
+                &self.position,
+                self.yaw.to_radians(),
+                self.pitch.to_radians(),
+                &self.up,
+            );
             self.view_proj_matrix = self.projection_matrix * self.view_matrix;
             self.dirty = false;
         }

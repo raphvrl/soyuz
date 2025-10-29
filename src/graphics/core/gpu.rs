@@ -43,6 +43,10 @@ impl GpuContext {
     pub fn supports_feature(&self, feature: wgpu::Features) -> bool {
         self.adapter.features().contains(feature)
     }
+
+    pub fn submit(&self, command_buffer: Option<wgpu::CommandBuffer>) {
+        self.queue.submit(command_buffer);
+    }
 }
 
 pub struct GpuContextBuilder {

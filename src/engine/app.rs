@@ -1,20 +1,14 @@
-use crate::engine::render::RenderSystem;
-use crate::graphics::core::GpuContext;
-use crate::graphics::core::surface::Surface;
+use crate::ecs::{events::*, resources::*, systems::*};
+use crate::graphics::core::{GpuContext, Surface};
+use bevy_ecs::prelude::*;
 use winit::{
     application::ApplicationHandler,
-    event::WindowEvent,
+    event::{DeviceEvent, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     window::{Window, WindowId},
 };
 
 use std::sync::Arc;
-
-pub struct State {
-    window: Arc<Window>,
-    gpu_context: GpuContext,
-    surface: Surface,
-}
 
 #[derive(Clone)]
 pub struct AppConfig {
@@ -35,12 +29,16 @@ impl Default for AppConfig {
 
 pub struct App {
     config: AppConfig,
+    startup_schedule: Schedule,
+    update_schedule: Schedule,
 }
 
 impl App {
     pub fn new() -> Self {
         Self {
             config: AppConfig::default(),
+            startup_schedule: Schedule::default(),
+            update_schedule: Schedule::default(),
         }
     }
 
@@ -55,15 +53,35 @@ impl App {
         self
     }
 
-    pub fn run<T: RenderSystem + 'static>(self, render_system: T) {
+    pub fn add_startup_system<Marker>(
+        mut self,
+        system: impl IntoSystem<(), (), Marker> + 'static,
+    ) -> Self {
+        self.startup_schedule.add_systems(system);
+        self
+    }
+
+    pub fn add_system<Marker>(mut self, system: impl IntoSystem<(), (), Marker> + 'static) -> Self {
+        self.update_schedule.add_systems(system);
+        self
+    }
+
+    pub fn run(mut self) {
+        let world = World::new();
+
+        self.update_schedule.add_systems(render_system);
+
         let event_loop = EventLoop::new().unwrap();
         event_loop.set_control_flow(ControlFlow::Poll);
 
-        let mut handler = AppHandler {
+        let mut handler = EcsAppHandler {
             config: self.config,
+            world,
+            startup_schedule: self.startup_schedule,
+            update_schedule: self.update_schedule,
             state: None,
-            render_system,
         };
+
         event_loop.run_app(&mut handler).unwrap();
     }
 }
@@ -74,13 +92,19 @@ impl Default for App {
     }
 }
 
-struct AppHandler<T: RenderSystem> {
+struct EcsAppHandler {
     config: AppConfig,
-    state: Option<State>,
-    render_system: T,
+    world: World,
+    startup_schedule: Schedule,
+    update_schedule: Schedule,
+    state: Option<AppState>,
 }
 
-impl<T: RenderSystem> ApplicationHandler for AppHandler<T> {
+struct AppState {
+    window: Arc<Window>,
+}
+
+impl ApplicationHandler for EcsAppHandler {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.state.is_none() {
             let window_attributes = winit::window::Window::default_attributes()
@@ -92,18 +116,47 @@ impl<T: RenderSystem> ApplicationHandler for AppHandler<T> {
 
             let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
 
-            let gpu_context =
-                pollster::block_on(async { GpuContext::builder().build().await.unwrap() });
-
-            let surface = Surface::new(window.clone(), &gpu_context).unwrap();
-
-            self.render_system.init(&gpu_context, &surface);
-
-            self.state = Some(State {
-                window: window.clone(),
-                gpu_context,
-                surface,
+            let gpu_context = pollster::block_on(async {
+                GpuContext::builder()
+                    .features(wgpu::Features::PUSH_CONSTANTS)
+                    .limits(wgpu::Limits {
+                        max_push_constant_size: 128,
+                        ..Default::default()
+                    })
+                    .build()
+                    .await
+                    .unwrap()
             });
+
+            let mut surface = Surface::new(window.clone(), &gpu_context).unwrap();
+            surface.configure(&gpu_context);
+
+            self.world
+                .insert_resource(RenderingContext::new(gpu_context, surface));
+
+            self.world.init_resource::<Messages<WindowResizeEvent>>();
+
+            self.world.insert_resource(Input::new());
+            self.world.insert_resource(Mouse::new());
+
+            self.world.insert_resource(MainCamera::new(
+                45.0,
+                self.config.width as f32 / self.config.height as f32,
+                0.1,
+                100.0,
+            ));
+
+            self.startup_schedule.run(&mut self.world);
+
+            self.state = Some(AppState {
+                window: window.clone(),
+            });
+
+            window
+                .set_cursor_grab(winit::window::CursorGrabMode::Locked)
+                .unwrap();
+
+            window.set_cursor_visible(false);
 
             window.request_redraw();
         }
@@ -120,28 +173,67 @@ impl<T: RenderSystem> ApplicationHandler for AppHandler<T> {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
+                if let Some(mut messages) =
+                    self.world.get_resource_mut::<Messages<WindowResizeEvent>>()
+                {
+                    messages.update();
+                }
+
+                self.update_schedule.run(&mut self.world);
+
+                if let Some(mut input) = self.world.get_resource_mut::<Input>() {
+                    input.update();
+                }
+
+                if let Some(mut mouse) = self.world.get_resource_mut::<Mouse>() {
+                    mouse.update();
+                }
+
                 if let Some(state) = &self.state {
-                    self.render_system
-                        .render(&state.gpu_context, &state.surface, &state.window);
                     state.window.request_redraw();
                 }
             }
             WindowEvent::Resized(physical_size) => {
-                if let Some(state) = &mut self.state {
-                    state.surface.resize(
-                        &state.gpu_context,
-                        physical_size.width,
-                        physical_size.height,
-                    );
+                if let Some(mut messages) =
+                    self.world.get_resource_mut::<Messages<WindowResizeEvent>>()
+                {
+                    messages.write(WindowResizeEvent {
+                        width: physical_size.width,
+                        height: physical_size.height,
+                    });
+                }
+            }
+            WindowEvent::KeyboardInput { event, .. } => {
+                if let Some(mut input) = self.world.get_resource_mut::<Input>() {
+                    let keycode = match event.physical_key {
+                        winit::keyboard::PhysicalKey::Code(code) => code,
+                        winit::keyboard::PhysicalKey::Unidentified(_) => return,
+                    };
 
-                    self.render_system.resize(
-                        &state.gpu_context,
-                        physical_size.width,
-                        physical_size.height,
-                    );
+                    match event.state {
+                        winit::event::ElementState::Pressed => {
+                            input.press_key(keycode);
+                        }
+                        winit::event::ElementState::Released => {
+                            input.release_key(keycode);
+                        }
+                    }
                 }
             }
             _ => {}
+        }
+    }
+
+    fn device_event(
+        &mut self,
+        _event_loop: &ActiveEventLoop,
+        _device_id: winit::event::DeviceId,
+        event: DeviceEvent,
+    ) {
+        if let DeviceEvent::MouseMotion { delta } = event
+            && let Some(mut mouse) = self.world.get_resource_mut::<Mouse>()
+        {
+            mouse.add_delta(delta.0 as f32, delta.1 as f32);
         }
     }
 }

@@ -5,6 +5,7 @@ mod vertex;
 
 use wgpu::util::DeviceExt;
 
+#[derive(Clone)]
 pub struct Buffer {
     buffer: wgpu::Buffer,
     size: wgpu::BufferAddress,

@@ -1,5 +1,6 @@
 use super::{Buffer, BufferData};
 
+#[derive(Clone)]
 pub struct UniformBuffer(Buffer);
 
 impl UniformBuffer {

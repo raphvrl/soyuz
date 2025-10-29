@@ -1,3 +1,5 @@
+use crate::graphics::core::GpuContext;
+
 pub struct Texture {
     texture: wgpu::Texture,
     view: wgpu::TextureView,
@@ -7,25 +9,29 @@ pub struct Texture {
 }
 
 impl Texture {
+    pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+
     pub fn from_image(
-        device: &wgpu::Device,
+        gpu: &GpuContext,
         queue: &wgpu::Queue,
         img: image::DynamicImage,
         label: Option<&str>,
     ) -> Self {
         let rgba = img.to_rgba8();
         let data = rgba.as_raw();
-        Self::from_rgba(device, queue, rgba.width(), rgba.height(), data, label)
+        Self::from_rgba(gpu, queue, rgba.width(), rgba.height(), data, label)
     }
 
     pub fn from_rgba(
-        device: &wgpu::Device,
+        gpu: &GpuContext,
         queue: &wgpu::Queue,
         width: u32,
         height: u32,
         data: &[u8],
         label: Option<&str>,
     ) -> Self {
+        let device = gpu.device();
+
         let size = wgpu::Extent3d {
             width,
             height,
@@ -71,12 +77,14 @@ impl Texture {
     }
 
     pub fn new_render_target(
-        device: &wgpu::Device,
+        gpu: &GpuContext,
         width: u32,
         height: u32,
         format: wgpu::TextureFormat,
         label: Option<&str>,
     ) -> Self {
+        let device = gpu.device();
+
         let size = wgpu::Extent3d {
             width,
             height,
@@ -106,11 +114,13 @@ impl Texture {
     }
 
     pub fn new_depth_texture(
-        device: &wgpu::Device,
+        gpu: &GpuContext,
         width: u32,
         height: u32,
         label: Option<&str>,
     ) -> Self {
+        let device = gpu.device();
+
         let size = wgpu::Extent3d {
             width,
             height,
@@ -155,7 +165,9 @@ impl Texture {
         self.format
     }
 
-    pub fn resize(&mut self, device: &wgpu::Device, width: u32, height: u32) {
+    pub fn resize(&mut self, gpu: &GpuContext, width: u32, height: u32) {
+        let device = gpu.device();
+
         let size = wgpu::Extent3d {
             width,
             height,

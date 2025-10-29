@@ -17,6 +17,11 @@ impl<'a> RenderPass<'a> {
         self.pass.set_pipeline(pipeline.raw());
     }
 
+    pub fn set_push_constant(&mut self, index: u32, data: &[u8]) {
+        self.pass
+            .set_push_constants(wgpu::ShaderStages::all(), index, data);
+    }
+
     pub fn set_vertex_buffer(&mut self, vertex_buffer: &VertexBuffer) {
         self.pass.set_vertex_buffer(0, vertex_buffer.slice(..));
     }

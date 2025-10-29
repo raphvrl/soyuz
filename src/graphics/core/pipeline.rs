@@ -1,5 +1,6 @@
 use super::bind_group::BindGroup;
 use super::error::{RenderError, Result};
+use super::gpu::GpuContext;
 use super::shader::Shader;
 use std::sync::Arc;
 
@@ -107,8 +108,11 @@ impl PipelineBuilder {
         self
     }
 
-    pub fn push_constant_range(mut self, range: wgpu::PushConstantRange) -> Self {
-        self.push_constant_ranges.push(range);
+    pub fn push_constant_range(mut self, size: u32) -> Self {
+        self.push_constant_ranges.push(wgpu::PushConstantRange {
+            stages: wgpu::ShaderStages::all(),
+            range: 0..size,
+        });
         self
     }
 
@@ -184,7 +188,9 @@ impl PipelineBuilder {
         self
     }
 
-    pub fn build(self, device: &wgpu::Device) -> Result<RenderPipeline> {
+    pub fn build(self, gpu: &GpuContext) -> Result<RenderPipeline> {
+        let device = gpu.device();
+
         let vertex_shader = self.vertex_shader.ok_or(RenderError::MissingVertexShader)?;
         let fragment_shader = self.fragment_shader;
 

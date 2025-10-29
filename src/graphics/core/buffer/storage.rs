@@ -1,5 +1,6 @@
 use super::{Buffer, BufferData};
 
+#[derive(Clone)]
 pub struct StorageBuffer(Buffer);
 
 impl StorageBuffer {

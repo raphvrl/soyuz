@@ -230,13 +230,10 @@ impl ApplicationHandler for EcsAppHandler {
         _device_id: winit::event::DeviceId,
         event: DeviceEvent,
     ) {
-        match event {
-            DeviceEvent::MouseMotion { delta } => {
-                if let Some(mut mouse) = self.world.get_resource_mut::<Mouse>() {
-                    mouse.add_delta(delta.0 as f32, delta.1 as f32);
-                }
-            }
-            _ => {}
+        if let DeviceEvent::MouseMotion { delta } = event
+            && let Some(mut mouse) = self.world.get_resource_mut::<Mouse>()
+        {
+            mouse.add_delta(delta.0 as f32, delta.1 as f32);
         }
     }
 }

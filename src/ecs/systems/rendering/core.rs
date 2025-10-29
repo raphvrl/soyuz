@@ -56,7 +56,7 @@ pub fn render_system(
             .label("Main Render Pass")
             .clear_color(0.1, 0.2, 0.3, 1.0)
             .clear_depth(1.0)
-            .begin(&mut encoder, &view, Some(&rendering_context.depth_view()));
+            .begin(&mut encoder, &view, Some(rendering_context.depth_view()));
 
         basic_pipeline.draw(&mut render_pass, camera, query);
     }

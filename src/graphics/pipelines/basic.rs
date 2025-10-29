@@ -46,7 +46,7 @@ impl BasicPipeline {
             let bytes = bytemuck::bytes_of(&transform_matrix);
 
             pass.set_pipeline(&self.pipeline);
-            pass.set_push_constant(0, &bytes);
+            pass.set_push_constant(0, bytes);
 
             pass.set_vertex_buffer(&mesh.vertex_buffer);
             pass.set_index_buffer(&mesh.index_buffer);

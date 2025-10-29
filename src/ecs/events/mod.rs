@@ -1,7 +1,3 @@
-use bevy_ecs::prelude::*;
+pub mod window;
 
-#[derive(Message)]
-pub struct WindowResizeEvent {
-    pub width: u32,
-    pub height: u32,
-}
+pub use window::WindowResizeEvent;

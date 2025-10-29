@@ -1,9 +1,9 @@
-use crate::ecs::{events::WindowResizeEvent, resources::*, systems::*};
+use crate::ecs::{events::*, resources::*, systems::*};
 use crate::graphics::core::{GpuContext, Surface};
 use bevy_ecs::prelude::*;
 use winit::{
     application::ApplicationHandler,
-    event::WindowEvent,
+    event::{DeviceEvent, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     window::{Window, WindowId},
 };
@@ -136,6 +136,9 @@ impl ApplicationHandler for EcsAppHandler {
 
             self.world.init_resource::<Messages<WindowResizeEvent>>();
 
+            self.world.insert_resource(Input::new());
+            self.world.insert_resource(Mouse::new());
+
             self.world.insert_resource(MainCamera::new(
                 45.0,
                 self.config.width as f32 / self.config.height as f32,
@@ -148,6 +151,12 @@ impl ApplicationHandler for EcsAppHandler {
             self.state = Some(AppState {
                 window: window.clone(),
             });
+
+            window
+                .set_cursor_grab(winit::window::CursorGrabMode::Locked)
+                .unwrap();
+
+            window.set_cursor_visible(false);
 
             window.request_redraw();
         }
@@ -172,6 +181,14 @@ impl ApplicationHandler for EcsAppHandler {
 
                 self.update_schedule.run(&mut self.world);
 
+                if let Some(mut input) = self.world.get_resource_mut::<Input>() {
+                    input.update();
+                }
+
+                if let Some(mut mouse) = self.world.get_resource_mut::<Mouse>() {
+                    mouse.update();
+                }
+
                 if let Some(state) = &self.state {
                     state.window.request_redraw();
                 }
@@ -184,6 +201,39 @@ impl ApplicationHandler for EcsAppHandler {
                         width: physical_size.width,
                         height: physical_size.height,
                     });
+                }
+            }
+            WindowEvent::KeyboardInput { event, .. } => {
+                if let Some(mut input) = self.world.get_resource_mut::<Input>() {
+                    let keycode = match event.physical_key {
+                        winit::keyboard::PhysicalKey::Code(code) => code,
+                        winit::keyboard::PhysicalKey::Unidentified(_) => return,
+                    };
+
+                    match event.state {
+                        winit::event::ElementState::Pressed => {
+                            input.press_key(keycode);
+                        }
+                        winit::event::ElementState::Released => {
+                            input.release_key(keycode);
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn device_event(
+        &mut self,
+        _event_loop: &ActiveEventLoop,
+        _device_id: winit::event::DeviceId,
+        event: DeviceEvent,
+    ) {
+        match event {
+            DeviceEvent::MouseMotion { delta } => {
+                if let Some(mut mouse) = self.world.get_resource_mut::<Mouse>() {
+                    mouse.add_delta(delta.0 as f32, delta.1 as f32);
                 }
             }
             _ => {}

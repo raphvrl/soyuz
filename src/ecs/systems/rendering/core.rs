@@ -21,8 +21,6 @@ pub fn resize_system(
         if event.width > 0 && event.height > 0 {
             rendering_context.resize(event.width, event.height);
 
-            rendering_context.resize(event.width, event.height);
-
             camera
                 .get_mut()
                 .set_aspect_ratio(event.width as f32 / event.height as f32);
@@ -33,7 +31,8 @@ pub fn resize_system(
 pub fn render_system(
     rendering_context: Res<RenderingContext>,
     mut asset_manager: ResMut<AssetManager>,
-    camera: Res<MainCamera>,
+    camera_buffer: Res<CameraBuffer>,
+    lighting_buffer: Res<LightingBuffer>,
     query: Query<(&Transform, &Mesh, &Material)>,
 ) {
     let gpu = &rendering_context.gpu;
@@ -62,7 +61,13 @@ pub fn render_system(
             .clear_depth(1.0)
             .begin(&mut encoder, &view, Some(rendering_context.depth_view()));
 
-        basic_pipeline.draw(&mut render_pass, &asset_manager, camera, query);
+        basic_pipeline.draw(
+            &mut render_pass,
+            &asset_manager,
+            camera_buffer.as_ref(),
+            lighting_buffer.as_ref(),
+            query,
+        );
     }
 
     gpu.submit(Some(encoder.finish()));

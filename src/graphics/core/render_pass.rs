@@ -48,6 +48,15 @@ impl<'a> RenderPass<'a> {
     ) {
         self.pass.set_bind_group(index, bind_group.raw(), offsets);
     }
+
+    pub fn set_raw_bind_group(
+        &mut self,
+        index: u32,
+        bind_group: &wgpu::BindGroup,
+        offsets: &[wgpu::DynamicOffset],
+    ) {
+        self.pass.set_bind_group(index, bind_group, offsets);
+    }
 }
 
 pub struct RenderPassBuilder<'a> {

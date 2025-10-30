@@ -69,6 +69,10 @@ impl App {
     pub fn run(mut self) {
         let world = World::new();
 
+        self.update_schedule
+            .add_systems(update_camera_buffer_system);
+        self.update_schedule
+            .add_systems(update_lighting_buffer_system);
         self.update_schedule.add_systems(render_system);
 
         let event_loop = EventLoop::new().unwrap();
@@ -152,6 +156,12 @@ impl ApplicationHandler for EcsAppHandler {
                 0.1,
                 100.0,
             ));
+
+            let rendering_context = self.world.resource::<RenderingContext>();
+            let camera_buffer = CameraBuffer::new(&rendering_context.gpu);
+            let lighting_buffer = LightingBuffer::new(&rendering_context.gpu);
+            self.world.insert_resource(camera_buffer);
+            self.world.insert_resource(lighting_buffer);
 
             self.startup_schedule.run(&mut self.world);
 

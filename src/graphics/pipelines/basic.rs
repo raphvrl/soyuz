@@ -3,7 +3,8 @@ use crate::ecs::components::Material;
 use crate::ecs::components::Mesh;
 use crate::ecs::components::Transform;
 use crate::ecs::resources::AssetManager;
-use crate::ecs::resources::MainCamera;
+use crate::ecs::resources::CameraBuffer;
+use crate::ecs::resources::LightingBuffer;
 use crate::graphics::core::{GpuContext, RenderPass, RenderPipeline, Shader, Surface};
 use crate::graphics::resources::GpuTexture;
 use bevy_ecs::prelude::*;
@@ -12,7 +13,7 @@ use glam::Mat4;
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct PushConstants {
-    transform: Mat4,
+    model_matrix: Mat4,
     base_color: [f32; 4],
     texture_index: u32,
     _padding: [u32; 3],
@@ -28,7 +29,36 @@ impl BasicPipeline {
         surface: &Surface,
         texture_layout: &wgpu::BindGroupLayout,
     ) -> Self {
+        let device = gpu.device();
         let shader = Shader::from_file(gpu, "src/shaders/basic.wgsl").unwrap();
+
+        let camera_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("camera_bind_group_layout"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        });
+
+        let lighting_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("lighting_bind_group_layout"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        });
 
         let pipeline = RenderPipeline::builder()
             .vertex_shader(shader.clone(), "vs_main")
@@ -37,7 +67,9 @@ impl BasicPipeline {
             .color_target(surface.format())
             .push_constant_range(std::mem::size_of::<PushConstants>() as u32)
             .depth_stencil(GpuTexture::DEPTH_FORMAT)
+            .raw_bind_group_layout(&camera_layout)
             .raw_bind_group_layout(texture_layout)
+            .raw_bind_group_layout(&lighting_layout)
             .build(gpu)
             .unwrap();
 
@@ -48,21 +80,20 @@ impl BasicPipeline {
         &self,
         pass: &mut RenderPass,
         asset_manager: &AssetManager,
-        camera: Res<MainCamera>,
+        camera_buffer: &CameraBuffer,
+        lighting_buffer: &LightingBuffer,
         query: Query<(&Transform, &Mesh, &Material)>,
     ) {
         pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, asset_manager.texture_bind_group(), &[]);
+        pass.set_raw_bind_group(0, &camera_buffer.bind_group, &[]);
+        pass.set_bind_group(1, asset_manager.texture_bind_group(), &[]);
+        pass.set_raw_bind_group(2, &lighting_buffer.bind_group, &[]);
 
         for (transform, mesh, material) in query.iter() {
             let model_matrix = transform.get_matrix();
-            let camera = camera.get();
-            let view_matrix = camera.view_matrix();
-            let projection_matrix = camera.projection_matrix();
-            let transform_matrix = projection_matrix * view_matrix * model_matrix;
 
             let push_constants = PushConstants {
-                transform: transform_matrix,
+                model_matrix,
                 base_color: material.base_color,
                 texture_index: material.texture_index,
                 _padding: [0; 3],

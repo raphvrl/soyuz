@@ -87,6 +87,13 @@ pub fn derive_vertex(input: TokenStream) -> TokenStream {
                 }
             }
         }
+
+        // UNE SEULE implémentation du trait
+        impl crate::graphics::resources::VertexTrait for #struct_name {
+            fn desc() -> wgpu::VertexBufferLayout<'static> {
+                <Self>::desc()
+            }
+        }
     };
 
     TokenStream::from(expanded)

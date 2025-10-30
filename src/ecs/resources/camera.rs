@@ -1,7 +1,8 @@
+use crate::graphics::core::GpuContext;
 use crate::graphics::resources::camera::Camera;
 
 use bevy_ecs::prelude::*;
-use glam::Vec3;
+use glam::{Mat4, Vec3};
 
 #[derive(Resource)]
 pub struct MainCamera(Camera);
@@ -45,5 +46,72 @@ impl MainCamera {
 
     pub fn update(&mut self) {
         self.0.update();
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct CameraUniform {
+    pub view_proj: Mat4,
+}
+
+#[derive(Resource)]
+pub struct CameraBuffer {
+    pub buffer: wgpu::Buffer,
+    pub bind_group: wgpu::BindGroup,
+    pub bind_group_layout: wgpu::BindGroupLayout,
+}
+
+impl CameraBuffer {
+    pub fn new(gpu: &GpuContext) -> Self {
+        let device = gpu.device();
+
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("camera_bind_group_layout"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        });
+
+        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("camera_buffer"),
+            size: std::mem::size_of::<CameraUniform>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("camera_bind_group"),
+            layout: &bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: buffer.as_entire_binding(),
+            }],
+        });
+
+        Self {
+            buffer,
+            bind_group,
+            bind_group_layout,
+        }
+    }
+
+    pub fn update(&self, gpu: &GpuContext, view_proj: &Mat4) {
+        let uniform = CameraUniform {
+            view_proj: *view_proj,
+        };
+        gpu.queue()
+            .write_buffer(&self.buffer, 0, bytemuck::bytes_of(&uniform));
+    }
+
+    pub fn bind_group_layout(&self) -> &wgpu::BindGroupLayout {
+        &self.bind_group_layout
     }
 }

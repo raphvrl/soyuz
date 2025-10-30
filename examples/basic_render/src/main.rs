@@ -39,7 +39,14 @@ fn setup_scene(
         let material = gltf_asset
             .materials
             .first()
-            .map(|mat| asset_manager.load_material_from_gltf(gpu, mat, &gltf_asset.textures))
+            .map(|mat| {
+                asset_manager.load_material_from_gltf(
+                    gpu,
+                    mat,
+                    &gltf_asset.textures,
+                    "examples/basic_render/src/cube.glb",
+                )
+            })
             .unwrap_or_default();
 
         let transform = Transform {
@@ -50,6 +57,53 @@ fn setup_scene(
 
         commands.spawn((mesh, material, transform));
     }
+
+    let gltf_asset = asset_manager
+        .load_gltf_asset(gpu, "examples/basic_render/src/plane.glb")
+        .expect("Failed to load GLTF asset");
+
+    if let Some(mesh_data) = gltf_asset.meshes.first() {
+        let gpu_mesh = Arc::new(GpuMesh::new(
+            gpu,
+            &mesh_data.vertices,
+            &mesh_data.indices,
+            Some("Plane Mesh"),
+        ));
+        let mesh = Mesh::new(gpu_mesh);
+
+        let plane_material = gltf_asset
+            .materials
+            .first()
+            .map(|mat| {
+                asset_manager.load_material_from_gltf(
+                    gpu,
+                    mat,
+                    &gltf_asset.textures,
+                    "examples/basic_render/src/plane.glb",
+                )
+            })
+            .unwrap_or_default();
+
+        let transform = Transform {
+            translation: Vec3::new(0.0, -1.0, 0.0),
+            rotation: Quat::from_rotation_y(0.0),
+            scale: Vec3::ONE,
+        };
+
+        commands.spawn((mesh, plane_material, transform));
+    }
+
+    commands.spawn((
+        Transform {
+            translation: Vec3::new(5.0, 5.0, 5.0),
+            ..Default::default()
+        },
+        PointLight {
+            color: Vec3::new(1.0, 0.95, 0.9),
+            intensity: 1.0,
+            radius: 25.0,
+        },
+    ));
 }
 
 fn camera_movement_system(input: Res<Input>, mouse: Res<Mouse>, mut camera: ResMut<MainCamera>) {

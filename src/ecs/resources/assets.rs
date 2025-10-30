@@ -190,17 +190,20 @@ impl AssetManager {
         gpu: &GpuContext,
         gltf_material: &crate::assets::loaders::gltf::GltfMaterial,
         gltf_textures: &[image::DynamicImage],
+        gltf_path: &str,
     ) -> Material {
         if let Some(tex_idx) = gltf_material.base_color_texture_index {
             if let Some(img) = gltf_textures.get(tex_idx) {
                 let texture = Arc::new(GpuTexture::from_image(
                     gpu,
                     img.clone(),
-                    Some(&format!("gltf_texture_{}", tex_idx)),
+                    Some(&format!("{}_texture_{}", gltf_path, tex_idx)),
                 ));
 
-                let texture_index = self
-                    .register_texture_for_rendering(texture, format!("gltf_texture_{}", tex_idx));
+                let texture_index = self.register_texture_for_rendering(
+                    texture,
+                    format!("{}_texture_{}", gltf_path, tex_idx),
+                );
 
                 Material::new(texture_index)
             } else {

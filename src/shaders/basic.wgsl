@@ -12,6 +12,7 @@ struct VertexOutput {
 
 struct PushConstants {
     transform: mat4x4<f32>,
+    base_color: vec4<f32>,
     texture_index: u32,
 }
 
@@ -35,5 +36,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     let lighting = dot(normalize(in.normal), normalize(vec3<f32>(1.0, 1.0, 1.0))) * 0.5 + 0.5;
 
-    return vec4<f32>(texture_color.rgb * lighting, texture_color.a);
+    let final_color = texture_color * pc.base_color;
+
+    return vec4<f32>(final_color.rgb * lighting, final_color.a);
 }

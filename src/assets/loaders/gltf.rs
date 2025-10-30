@@ -29,46 +29,65 @@ impl GltfMeshData {
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, GltfLoadError> {
         let (gltf, buffers, _) = gltf::import(path)?;
 
-        let mesh = gltf.meshes().next().ok_or(GltfLoadError::NoPrimitives)?;
+        let mut all_vertices = Vec::new();
+        let mut all_indices = Vec::new();
 
-        let primitive = mesh
-            .primitives()
-            .next()
-            .ok_or(GltfLoadError::NoPrimitives)?;
+        for mesh in gltf.meshes() {
+            for primitive in mesh.primitives() {
+                let reader =
+                    primitive.reader(|buffer| buffers.get(buffer.index()).map(|data| &data[..]));
 
-        let reader = primitive.reader(|buffer| buffers.get(buffer.index()).map(|data| &data[..]));
+                let positions = reader
+                    .read_positions()
+                    .ok_or(GltfLoadError::MissingPosition)?
+                    .map(Vec3::from)
+                    .collect::<Vec<_>>();
 
-        let positions = reader
-            .read_positions()
-            .ok_or(GltfLoadError::MissingPosition)?
-            .map(Vec3::from)
-            .collect::<Vec<_>>();
+                let normals = reader
+                    .read_normals()
+                    .map(|iter| iter.map(Vec3::from).collect::<Vec<_>>())
+                    .unwrap_or_else(|| vec![Vec3::Y; positions.len()]);
 
-        let normals = reader
-            .read_normals()
-            .map(|iter| iter.map(Vec3::from).collect::<Vec<_>>())
-            .unwrap_or_else(|| vec![Vec3::Y; positions.len()]);
+                let uvs = reader
+                    .read_tex_coords(0)
+                    .map(|iter| iter.into_f32().map(Vec2::from).collect::<Vec<_>>())
+                    .unwrap_or_else(|| vec![Vec2::ZERO; positions.len()]);
 
-        let uvs = reader
-            .read_tex_coords(0)
-            .map(|iter| iter.into_f32().map(Vec2::from).collect::<Vec<_>>())
-            .unwrap_or_else(|| vec![Vec2::ZERO; positions.len()]);
+                let vertices: Vec<GltfVertex> = positions
+                    .into_iter()
+                    .zip(normals)
+                    .zip(uvs)
+                    .map(|((position, normal), uv)| GltfVertex::new(position, normal, uv))
+                    .collect();
 
-        let vertices = positions
-            .into_iter()
-            .zip(normals)
-            .zip(uvs)
-            .map(|((position, normal), uv)| GltfVertex::new(position, normal, uv))
-            .collect();
+                let vertex_offset = all_vertices.len() as u32;
 
-        let indices = reader
-            .read_indices()
-            .ok_or(GltfLoadError::MissingIndices)?
-            .into_u32()
-            .map(|i| i as u16)
-            .collect();
+                if let Some(indices_reader) = reader.read_indices() {
+                    let indices: Vec<u16> = indices_reader
+                        .into_u32()
+                        .map(|i| (i + vertex_offset) as u16)
+                        .collect();
 
-        Ok(Self { vertices, indices })
+                    all_indices.extend(indices);
+                } else {
+                    let indices: Vec<u16> = (0..vertices.len() as u32)
+                        .map(|i| (i + vertex_offset) as u16)
+                        .collect();
+                    all_indices.extend(indices);
+                }
+
+                all_vertices.extend(vertices);
+            }
+        }
+
+        if all_vertices.is_empty() {
+            return Err(GltfLoadError::NoPrimitives);
+        }
+
+        Ok(Self {
+            vertices: all_vertices,
+            indices: all_indices,
+        })
     }
 
     pub fn to_gpu_mesh(&self, gpu: &GpuContext, label: Option<&str>) -> GpuMesh {

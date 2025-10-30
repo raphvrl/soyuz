@@ -1,5 +1,5 @@
-use crate::ecs::resources::AssetManager;
 use crate::ecs::events::WindowResizeEvent;
+use crate::ecs::resources::AssetManager;
 use crate::ecs::resources::RenderingContext;
 use crate::ecs::{components::*, resources::*};
 use crate::graphics::core::RenderPass;

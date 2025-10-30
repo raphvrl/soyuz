@@ -20,7 +20,8 @@ impl RenderingContext {
         let depth_texture =
             GpuTexture::new_depth_texture(&gpu, width, height, Some("Depth Texture"));
 
-        let basic_pipeline = BasicPipeline::new(&gpu, &surface, asset_manager.texture_bind_group_layout());
+        let basic_pipeline =
+            BasicPipeline::new(&gpu, &surface, asset_manager.texture_bind_group_layout());
 
         Self {
             gpu,

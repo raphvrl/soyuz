@@ -40,7 +40,7 @@ fn setup_scene(
             .materials
             .first()
             .map(|mat| asset_manager.load_material_from_gltf(gpu, mat, &gltf_asset.textures))
-            .unwrap_or_else(|| Material::default());
+            .unwrap_or_default();
 
         let transform = Transform {
             translation: Vec3::new(0.0, 0.0, 0.0),

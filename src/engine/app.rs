@@ -1,3 +1,4 @@
+use crate::ecs::components::AssetManager;
 use crate::ecs::{events::*, resources::*, systems::*};
 use crate::graphics::core::{GpuContext, Surface};
 use bevy_ecs::prelude::*;
@@ -138,6 +139,8 @@ impl ApplicationHandler for EcsAppHandler {
 
             self.world.insert_resource(Input::new());
             self.world.insert_resource(Mouse::new());
+
+            self.world.insert_resource(AssetManager::new());
 
             self.world.insert_resource(MainCamera::new(
                 45.0,

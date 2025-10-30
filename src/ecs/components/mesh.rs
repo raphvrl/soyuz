@@ -5,6 +5,8 @@ use soyuz_macros::Vertex;
 
 use glam::Vec3;
 
+use std::sync::Arc;
+
 #[derive(Vertex)]
 pub struct VertexData {
     pub position: Vec3,
@@ -13,11 +15,11 @@ pub struct VertexData {
 
 #[derive(Component, Clone)]
 pub struct Mesh {
-    pub gpu_mesh: GpuMesh,
+    pub gpu_mesh: Arc<GpuMesh>,
 }
 
 impl Mesh {
-    pub fn new(gpu_mesh: GpuMesh) -> Self {
+    pub fn new(gpu_mesh: Arc<GpuMesh>) -> Self {
         Self { gpu_mesh }
     }
 

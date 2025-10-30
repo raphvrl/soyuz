@@ -1,6 +1,5 @@
 use bevy_ecs::prelude::*;
 use glam::{Quat, Vec3};
-use soyuz::assets::loaders::*;
 use soyuz::ecs::components::*;
 use soyuz::ecs::resources::*;
 use soyuz::engine::app::App;
@@ -15,45 +14,31 @@ fn main() {
         .run();
 }
 
-fn setup_scene(mut commands: Commands, ctx: Res<RenderingContext>) {
+fn setup_scene(
+    mut commands: Commands,
+    ctx: Res<RenderingContext>,
+    mut asset_manager: ResMut<AssetManager>,
+) {
     let gpu = &ctx.gpu;
 
-    let gpu_mesh = load_gltf_mesh(gpu, "examples/basic_render/src/monkey.glb", Some("MyModel"))
+    let gpu_mesh = asset_manager
+        .load_mesh(gpu, "examples/basic_render/src/monkey.glb")
         .expect("Failed to load GLB mesh");
 
     let mesh = Mesh::new(gpu_mesh.clone());
 
-    let transform = Transform {
-        translation: Vec3::new(0.0, 0.0, -3.0),
-        rotation: Quat::from_rotation_y(0.0),
-        scale: Vec3::ONE,
-    };
+    for x in -10..10 {
+        for z in -10..10 {
+            let spacing = 4.0;
 
-    commands.spawn((mesh.clone(), transform));
-
-    let transform2 = Transform {
-        translation: Vec3::new(3.0, 0.0, -3.0),
-        rotation: Quat::from_rotation_y(0.0),
-        scale: Vec3::ONE,
-    };
-
-    commands.spawn((mesh.clone(), transform2));
-
-    let transform3 = Transform {
-        translation: Vec3::new(3.0, 0.0, 0.0),
-        rotation: Quat::from_rotation_y(0.0),
-        scale: Vec3::ONE,
-    };
-
-    commands.spawn((mesh.clone(), transform3));
-
-    let transform4 = Transform {
-        translation: Vec3::new(0.0, 0.0, 0.0),
-        rotation: Quat::from_rotation_y(0.0),
-        scale: Vec3::ONE,
-    };
-
-    commands.spawn((mesh.clone(), transform4));
+            let transform = Transform {
+                translation: Vec3::new(x as f32 * spacing, 0.0, z as f32 * spacing),
+                rotation: Quat::from_rotation_y(0.0),
+                scale: Vec3::ONE,
+            };
+            commands.spawn((mesh.clone(), transform));
+        }
+    }
 }
 
 fn camera_movement_system(input: Res<Input>, mouse: Res<Mouse>, mut camera: ResMut<MainCamera>) {

@@ -24,7 +24,7 @@ fn setup_scene(
     let gpu = &ctx.gpu;
 
     let gltf_asset = asset_manager
-        .load_gltf_asset(gpu, "examples/basic_render/src/pomni.glb")
+        .load_gltf_asset(gpu, "examples/basic_render/src/cube.glb")
         .expect("Failed to load GLTF asset");
 
     if let Some(mesh_data) = gltf_asset.meshes.first() {
@@ -32,7 +32,7 @@ fn setup_scene(
             gpu,
             &mesh_data.vertices,
             &mesh_data.indices,
-            Some("pomni_mesh"),
+            Some("Cube Mesh"),
         ));
         let mesh = Mesh::new(gpu_mesh);
 

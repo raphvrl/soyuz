@@ -2,8 +2,8 @@ use crate::assets::vertices::GltfVertex;
 use crate::ecs::components::Material;
 use crate::ecs::components::Mesh;
 use crate::ecs::components::Transform;
-use crate::ecs::resources::MainCamera;
 use crate::ecs::resources::AssetManager;
+use crate::ecs::resources::MainCamera;
 use crate::graphics::core::{GpuContext, RenderPass, RenderPipeline, Shader, Surface};
 use crate::graphics::resources::GpuTexture;
 use bevy_ecs::prelude::*;
@@ -13,6 +13,7 @@ use glam::Mat4;
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct PushConstants {
     transform: Mat4,
+    base_color: [f32; 4],
     texture_index: u32,
     _padding: [u32; 3],
 }
@@ -62,6 +63,7 @@ impl BasicPipeline {
 
             let push_constants = PushConstants {
                 transform: transform_matrix,
+                base_color: material.base_color,
                 texture_index: material.texture_index,
                 _padding: [0; 3],
             };

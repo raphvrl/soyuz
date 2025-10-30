@@ -6,5 +6,5 @@ pub mod vertex;
 
 pub use mesh::GpuMesh;
 pub use sampler::TextureSampler;
-pub use texture::Texture;
+pub use texture::GpuTexture;
 pub use vertex::VertexTrait;

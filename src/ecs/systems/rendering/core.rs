@@ -1,3 +1,4 @@
+use crate::ecs::resources::AssetManager;
 use crate::ecs::events::WindowResizeEvent;
 use crate::ecs::resources::RenderingContext;
 use crate::ecs::{components::*, resources::*};
@@ -31,12 +32,15 @@ pub fn resize_system(
 
 pub fn render_system(
     rendering_context: Res<RenderingContext>,
+    mut asset_manager: ResMut<AssetManager>,
     camera: Res<MainCamera>,
-    query: Query<(&Transform, &Mesh)>,
+    query: Query<(&Transform, &Mesh, &Material)>,
 ) {
     let gpu = &rendering_context.gpu;
     let surface = &rendering_context.surface;
     let basic_pipeline = &rendering_context.basic_pipeline;
+
+    asset_manager.update_texture_bindings(gpu);
 
     let surface_texture = match surface.get_current_texture() {
         Ok(texture) => texture,
@@ -58,7 +62,7 @@ pub fn render_system(
             .clear_depth(1.0)
             .begin(&mut encoder, &view, Some(rendering_context.depth_view()));
 
-        basic_pipeline.draw(&mut render_pass, camera, query);
+        basic_pipeline.draw(&mut render_pass, &asset_manager, camera, query);
     }
 
     gpu.submit(Some(encoder.finish()));

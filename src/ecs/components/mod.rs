@@ -1,7 +1,7 @@
-pub mod assets;
+pub mod material;
 pub mod mesh;
 pub mod transform;
 
-pub use assets::*;
+pub use material::*;
 pub use mesh::*;
 pub use transform::*;

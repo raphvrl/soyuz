@@ -1,25 +1,26 @@
+use crate::ecs::resources::AssetManager;
 use crate::graphics::core::{GpuContext, Surface};
 use crate::graphics::pipelines::BasicPipeline;
-use crate::graphics::resources::Texture;
+use crate::graphics::resources::GpuTexture;
 use bevy_ecs::prelude::*;
 
 #[derive(Resource)]
 pub struct RenderingContext {
     pub gpu: GpuContext,
     pub surface: Surface,
-    pub depth_texture: Texture,
-
+    pub depth_texture: GpuTexture,
     pub basic_pipeline: BasicPipeline,
 }
 
 impl RenderingContext {
-    pub fn new(gpu: GpuContext, surface: Surface) -> Self {
+    pub fn new(gpu: GpuContext, surface: Surface, asset_manager: &AssetManager) -> Self {
         let width = surface.width();
         let height = surface.height();
 
-        let depth_texture = Texture::new_depth_texture(&gpu, width, height, Some("Depth Texture"));
+        let depth_texture =
+            GpuTexture::new_depth_texture(&gpu, width, height, Some("Depth Texture"));
 
-        let basic_pipeline = BasicPipeline::new(&gpu, &surface);
+        let basic_pipeline = BasicPipeline::new(&gpu, &surface, asset_manager.texture_bind_group_layout());
 
         Self {
             gpu,

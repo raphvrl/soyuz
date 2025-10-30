@@ -3,6 +3,8 @@ use glam::{Quat, Vec3};
 use soyuz::ecs::components::*;
 use soyuz::ecs::resources::*;
 use soyuz::engine::app::App;
+use soyuz::graphics::resources::mesh::GpuMesh;
+use std::sync::Arc;
 use winit::keyboard::KeyCode;
 
 fn main() {
@@ -10,7 +12,7 @@ fn main() {
         .with_title("Basic Render - Cube")
         .add_startup_system(setup_scene)
         .add_system(camera_movement_system)
-        .with_size(800, 600)
+        .with_size(1280, 720)
         .run();
 }
 
@@ -21,23 +23,32 @@ fn setup_scene(
 ) {
     let gpu = &ctx.gpu;
 
-    let gpu_mesh = asset_manager
-        .load_mesh(gpu, "examples/basic_render/src/monkey.glb")
-        .expect("Failed to load GLB mesh");
+    let gltf_asset = asset_manager
+        .load_gltf_asset(gpu, "examples/basic_render/src/pomni.glb")
+        .expect("Failed to load GLTF asset");
 
-    let mesh = Mesh::new(gpu_mesh.clone());
+    if let Some(mesh_data) = gltf_asset.meshes.first() {
+        let gpu_mesh = Arc::new(GpuMesh::new(
+            gpu,
+            &mesh_data.vertices,
+            &mesh_data.indices,
+            Some("pomni_mesh"),
+        ));
+        let mesh = Mesh::new(gpu_mesh);
 
-    for x in -10..10 {
-        for z in -10..10 {
-            let spacing = 4.0;
+        let material = gltf_asset
+            .materials
+            .first()
+            .map(|mat| asset_manager.load_material_from_gltf(gpu, mat, &gltf_asset.textures))
+            .unwrap_or_else(|| Material::default());
 
-            let transform = Transform {
-                translation: Vec3::new(x as f32 * spacing, 0.0, z as f32 * spacing),
-                rotation: Quat::from_rotation_y(0.0),
-                scale: Vec3::ONE,
-            };
-            commands.spawn((mesh.clone(), transform));
-        }
+        let transform = Transform {
+            translation: Vec3::new(0.0, 0.0, 0.0),
+            rotation: Quat::from_rotation_y(0.0),
+            scale: Vec3::ONE,
+        };
+
+        commands.spawn((mesh, material, transform));
     }
 }
 

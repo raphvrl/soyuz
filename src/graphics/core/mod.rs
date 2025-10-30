@@ -7,7 +7,7 @@ pub mod render_pass;
 pub mod shader;
 pub mod surface;
 
-pub use bind_group::BindGroup;
+pub use bind_group::*;
 pub use buffer::*;
 pub use gpu::GpuContext;
 pub use pipeline::RenderPipeline;

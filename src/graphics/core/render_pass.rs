@@ -1,5 +1,6 @@
 use std::ops::Range;
 
+use super::bind_group::BindGroup;
 use super::buffer::IndexBuffer;
 use super::buffer::VertexBuffer;
 use super::pipeline::RenderPipeline;
@@ -42,10 +43,10 @@ impl<'a> RenderPass<'a> {
     pub fn set_bind_group(
         &mut self,
         index: u32,
-        bind_group: &wgpu::BindGroup,
+        bind_group: &BindGroup,
         offsets: &[wgpu::DynamicOffset],
     ) {
-        self.pass.set_bind_group(index, bind_group, offsets);
+        self.pass.set_bind_group(index, bind_group.raw(), offsets);
     }
 }
 

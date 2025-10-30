@@ -13,6 +13,7 @@ soyuz_macros = { path = "./macros" }
 glam = { version = "0.30.9", features = ["bytemuck"] }
 image = "0.25.8"
 bevy_ecs = "0.17.2"
+gltf = "1.4.1"
 
 [[example]]
 name = "basic_render"

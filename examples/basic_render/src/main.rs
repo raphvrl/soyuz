@@ -3,7 +3,6 @@ use glam::{Quat, Vec3};
 use soyuz::ecs::components::*;
 use soyuz::ecs::resources::*;
 use soyuz::engine::app::App;
-use soyuz::graphics::core::{IndexBuffer, VertexBuffer};
 use winit::keyboard::KeyCode;
 
 fn main() {
@@ -15,86 +14,31 @@ fn main() {
         .run();
 }
 
-fn setup_scene(mut commands: Commands, rendering_context: Res<RenderingContext>) {
-    let gpu = &rendering_context.gpu;
+fn setup_scene(
+    mut commands: Commands,
+    ctx: Res<RenderingContext>,
+    mut asset_manager: ResMut<AssetManager>,
+) {
+    let gpu = &ctx.gpu;
 
-    let vertices = vec![
-        VertexData {
-            position: Vec3::new(-0.5, -0.5, 0.5),
-            color: Vec3::new(1.0, 0.0, 0.0),
-        },
-        VertexData {
-            position: Vec3::new(0.5, -0.5, 0.5),
-            color: Vec3::new(0.0, 1.0, 0.0),
-        },
-        VertexData {
-            position: Vec3::new(0.5, 0.5, 0.5),
-            color: Vec3::new(0.0, 0.0, 1.0),
-        },
-        VertexData {
-            position: Vec3::new(-0.5, 0.5, 0.5),
-            color: Vec3::new(1.0, 1.0, 0.0),
-        },
-        VertexData {
-            position: Vec3::new(-0.5, -0.5, -0.5),
-            color: Vec3::new(1.0, 0.0, 1.0),
-        },
-        VertexData {
-            position: Vec3::new(0.5, -0.5, -0.5),
-            color: Vec3::new(0.0, 1.0, 1.0),
-        },
-        VertexData {
-            position: Vec3::new(0.5, 0.5, -0.5),
-            color: Vec3::new(1.0, 1.0, 1.0),
-        },
-        VertexData {
-            position: Vec3::new(-0.5, 0.5, -0.5),
-            color: Vec3::new(0.5, 0.5, 0.5),
-        },
-    ];
+    let gpu_mesh = asset_manager
+        .load_mesh(gpu, "examples/basic_render/src/monkey.glb")
+        .expect("Failed to load GLB mesh");
 
-    #[rustfmt::skip]
-    let indices: Vec<u16> = vec![
-        0, 1, 2,  2, 3, 0,
-        5, 4, 7,  7, 6, 5,
-        4, 0, 3,  3, 7, 4,
-        1, 5, 6,  6, 2, 1,
-        3, 2, 6,  6, 7, 3,
-        4, 5, 1,  1, 0, 4,
-    ];
+    let mesh = Mesh::new(gpu_mesh.clone());
 
-    let vertex_buffer = VertexBuffer::new(&gpu.device, Some("Cube Vertices"), &vertices);
-    let index_buffer = IndexBuffer::new_u16(&gpu.device, Some("Cube Indices"), &indices);
+    for x in -10..10 {
+        for z in -10..10 {
+            let spacing = 4.0;
 
-    let mesh = Mesh {
-        vertex_buffer,
-        index_buffer,
-        index_count: indices.len() as u32,
-    };
-
-    let transform = Transform {
-        translation: Vec3::new(0.0, 0.0, -3.0),
-        rotation: Quat::from_rotation_y(0.0),
-        scale: Vec3::ONE,
-    };
-
-    commands.spawn((mesh.clone(), transform));
-
-    let transform2 = Transform {
-        translation: Vec3::new(3.0, 0.0, -3.0),
-        rotation: Quat::from_rotation_y(0.0),
-        scale: Vec3::ONE,
-    };
-
-    commands.spawn((mesh.clone(), transform2));
-
-    let transform3 = Transform {
-        translation: Vec3::new(3.0, 0.0, 0.0),
-        rotation: Quat::from_rotation_y(0.0),
-        scale: Vec3::ONE,
-    };
-
-    commands.spawn((mesh.clone(), transform3));
+            let transform = Transform {
+                translation: Vec3::new(x as f32 * spacing, 0.0, z as f32 * spacing),
+                rotation: Quat::from_rotation_y(0.0),
+                scale: Vec3::ONE,
+            };
+            commands.spawn((mesh.clone(), transform));
+        }
+    }
 }
 
 fn camera_movement_system(input: Res<Input>, mouse: Res<Mouse>, mut camera: ResMut<MainCamera>) {

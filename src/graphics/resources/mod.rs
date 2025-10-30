@@ -1,12 +1,10 @@
 pub mod camera;
+pub mod mesh;
 pub mod sampler;
 pub mod texture;
+pub mod vertex;
 
+pub use mesh::GpuMesh;
 pub use sampler::TextureSampler;
 pub use texture::Texture;
-
-use super::core::buffer::BufferData;
-
-pub trait Vertex: BufferData {
-    fn desc() -> wgpu::VertexBufferLayout<'static>;
-}
+pub use vertex::VertexTrait;

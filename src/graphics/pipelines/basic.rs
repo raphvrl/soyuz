@@ -1,6 +1,6 @@
+use crate::assets::vertices::GltfVertex;
 use crate::ecs::components::Mesh;
 use crate::ecs::components::Transform;
-use crate::ecs::components::*;
 use crate::ecs::resources::MainCamera;
 use crate::graphics::core::{GpuContext, RenderPass, RenderPipeline, Shader, Surface};
 use crate::graphics::resources::Texture;
@@ -18,7 +18,7 @@ impl BasicPipeline {
         let pipeline = RenderPipeline::builder()
             .vertex_shader(shader.clone(), "vs_main")
             .fragment_shader(shader.clone(), "fs_main")
-            .vertex_layout(VertexData::desc())
+            .vertex_layout(GltfVertex::desc())
             .color_target(surface.format())
             .push_constant_range(std::mem::size_of::<Mat4>() as u32)
             .depth_stencil(Texture::DEPTH_FORMAT)
@@ -48,9 +48,7 @@ impl BasicPipeline {
             pass.set_pipeline(&self.pipeline);
             pass.set_push_constant(0, bytes);
 
-            pass.set_vertex_buffer(&mesh.vertex_buffer);
-            pass.set_index_buffer(&mesh.index_buffer);
-            pass.draw_indexed(0..mesh.index_count, 0, 0..1);
+            mesh.draw(pass);
         }
     }
 }

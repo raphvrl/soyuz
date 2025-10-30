@@ -1,6 +1,6 @@
 use crate::graphics::core::GpuContext;
 
-pub struct Texture {
+pub struct GpuTexture {
     texture: wgpu::Texture,
     view: wgpu::TextureView,
     size: wgpu::Extent3d,
@@ -8,29 +8,24 @@ pub struct Texture {
     mip_level_count: u32,
 }
 
-impl Texture {
+impl GpuTexture {
     pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
-    pub fn from_image(
-        gpu: &GpuContext,
-        queue: &wgpu::Queue,
-        img: image::DynamicImage,
-        label: Option<&str>,
-    ) -> Self {
+    pub fn from_image(gpu: &GpuContext, img: image::DynamicImage, label: Option<&str>) -> Self {
         let rgba = img.to_rgba8();
         let data = rgba.as_raw();
-        Self::from_rgba(gpu, queue, rgba.width(), rgba.height(), data, label)
+        Self::from_rgba(gpu, rgba.width(), rgba.height(), data, label)
     }
 
     pub fn from_rgba(
         gpu: &GpuContext,
-        queue: &wgpu::Queue,
         width: u32,
         height: u32,
         data: &[u8],
         label: Option<&str>,
     ) -> Self {
         let device = gpu.device();
+        let queue = gpu.queue();
 
         let size = wgpu::Extent3d {
             width,

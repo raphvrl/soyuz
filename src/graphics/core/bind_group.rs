@@ -103,6 +103,25 @@ impl BindGroupBuilder {
         self
     }
 
+    pub fn texture_array(
+        mut self,
+        binding: u32,
+        visibility: wgpu::ShaderStages,
+        count: u32,
+    ) -> Self {
+        self.layout_entries.push(wgpu::BindGroupLayoutEntry {
+            binding,
+            visibility,
+            ty: wgpu::BindingType::Texture {
+                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                view_dimension: wgpu::TextureViewDimension::D2,
+                multisampled: false,
+            },
+            count: std::num::NonZeroU32::new(count),
+        });
+        self
+    }
+
     pub fn build(self, device: &wgpu::Device, resources: &[BindResource]) -> Result<BindGroup> {
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: self
@@ -119,6 +138,14 @@ impl BindGroupBuilder {
                 BindResource::Sampler(binding, sampler) => wgpu::BindGroupEntry {
                     binding: *binding,
                     resource: wgpu::BindingResource::Sampler(sampler),
+                },
+                BindResource::TextureView(binding, texture_view) => wgpu::BindGroupEntry {
+                    binding: *binding,
+                    resource: wgpu::BindingResource::TextureView(texture_view),
+                },
+                BindResource::TextureViewArray(binding, texture_views) => wgpu::BindGroupEntry {
+                    binding: *binding,
+                    resource: wgpu::BindingResource::TextureViewArray(texture_views),
                 },
             })
             .collect();
@@ -148,4 +175,6 @@ impl Default for BindGroupBuilder {
 
 pub enum BindResource<'a> {
     Sampler(u32, &'a wgpu::Sampler),
+    TextureView(u32, &'a wgpu::TextureView),
+    TextureViewArray(u32, &'a [&'a wgpu::TextureView]),
 }

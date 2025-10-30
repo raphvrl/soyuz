@@ -98,7 +98,7 @@ impl PipelineBuilder {
         self
     }
 
-    pub fn bind_group_layout(mut self, layout: &BindGroup) -> Self {
+    pub fn bind_group(mut self, layout: &BindGroup) -> Self {
         self.bind_group_layouts.push(layout.layout().clone());
         self
     }

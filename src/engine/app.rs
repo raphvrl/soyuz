@@ -1,4 +1,3 @@
-use crate::ecs::components::AssetManager;
 use crate::ecs::{events::*, resources::*, systems::*};
 use crate::graphics::core::{GpuContext, Surface};
 use bevy_ecs::prelude::*;
@@ -119,9 +118,12 @@ impl ApplicationHandler for EcsAppHandler {
 
             let gpu_context = pollster::block_on(async {
                 GpuContext::builder()
-                    .features(wgpu::Features::PUSH_CONSTANTS)
+                    .add_features(wgpu::Features::PUSH_CONSTANTS)
+                    .add_features(wgpu::Features::TEXTURE_BINDING_ARRAY)
                     .limits(wgpu::Limits {
                         max_push_constant_size: 128,
+                        max_sampled_textures_per_shader_stage: 512,
+                        max_binding_array_elements_per_shader_stage: 512,
                         ..Default::default()
                     })
                     .build()
@@ -132,15 +134,17 @@ impl ApplicationHandler for EcsAppHandler {
             let mut surface = Surface::new(window.clone(), &gpu_context).unwrap();
             surface.configure(&gpu_context);
 
-            self.world
-                .insert_resource(RenderingContext::new(gpu_context, surface));
+            let asset_manager = AssetManager::new(&gpu_context);
+            self.world.insert_resource(asset_manager);
+
+            let asset_manager = self.world.resource::<AssetManager>();
+            let rendering_context = RenderingContext::new(gpu_context, surface, asset_manager);
+            self.world.insert_resource(rendering_context);
 
             self.world.init_resource::<Messages<WindowResizeEvent>>();
 
             self.world.insert_resource(Input::new());
             self.world.insert_resource(Mouse::new());
-
-            self.world.insert_resource(AssetManager::new());
 
             self.world.insert_resource(MainCamera::new(
                 45.0,

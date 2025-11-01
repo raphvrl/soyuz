@@ -95,13 +95,14 @@ fn setup_scene(
 
     commands.spawn((
         Transform {
-            translation: Vec3::new(5.0, 5.0, 5.0),
-            ..Default::default()
+            translation: Vec3::new(1.0, 10.0, 1.0),
+            rotation: Quat::from_rotation_y(0.0),
+            scale: Vec3::ONE,
         },
-        PointLight {
+        DirectionalLight {
+            direction: Vec3::new(0.5, -1.0, 0.3).normalize(),
             color: Vec3::new(1.0, 0.95, 0.9),
-            intensity: 1.0,
-            radius: 25.0,
+            intensity: 0.8,
         },
     ));
 }

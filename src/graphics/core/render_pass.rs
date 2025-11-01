@@ -168,4 +168,37 @@ impl<'a> RenderPassBuilder<'a> {
 
         RenderPass { pass }
     }
+
+    pub fn begin_depth_only(
+        self,
+        encoder: &'a mut wgpu::CommandEncoder,
+        depth_stencil_target: &'a wgpu::TextureView,
+    ) -> RenderPass<'a> {
+        let config = self.depth_stencil.as_ref();
+        let depth_stencil_attachment = Some(wgpu::RenderPassDepthStencilAttachment {
+            view: depth_stencil_target,
+            depth_ops: Some(wgpu::Operations {
+                load: config
+                    .and_then(|c| c.clear_depth.map(wgpu::LoadOp::Clear))
+                    .unwrap_or(wgpu::LoadOp::Load),
+                store: wgpu::StoreOp::Store,
+            }),
+            stencil_ops: Some(wgpu::Operations {
+                load: config
+                    .and_then(|c| c.clear_stencil.map(wgpu::LoadOp::Clear))
+                    .unwrap_or(wgpu::LoadOp::Load),
+                store: wgpu::StoreOp::Store,
+            }),
+        });
+
+        let pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: self.label,
+            color_attachments: &[],
+            depth_stencil_attachment,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+
+        RenderPass { pass }
+    }
 }

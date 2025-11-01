@@ -73,6 +73,7 @@ impl App {
             .add_systems(update_camera_buffer_system);
         self.update_schedule
             .add_systems(update_lighting_buffer_system);
+        self.update_schedule.add_systems(update_shadow_map_system);
         self.update_schedule.add_systems(render_system);
 
         let event_loop = EventLoop::new().unwrap();
@@ -139,10 +140,24 @@ impl ApplicationHandler for EcsAppHandler {
             surface.configure(&gpu_context);
 
             let asset_manager = AssetManager::new(&gpu_context);
+            let texture_layout = asset_manager.texture_bind_group_layout().clone();
             self.world.insert_resource(asset_manager);
 
-            let asset_manager = self.world.resource::<AssetManager>();
-            let rendering_context = RenderingContext::new(gpu_context, surface, asset_manager);
+            let shadow_map = ShadowMap::new(&gpu_context);
+            let shadow_map_layout = shadow_map.bind_group_layout().clone();
+            self.world.insert_resource(shadow_map);
+
+            let light_camera_buffer = LightCameraBuffer::new(&gpu_context);
+            let light_camera_layout = light_camera_buffer.bind_group_layout().clone();
+            self.world.insert_resource(light_camera_buffer);
+
+            let rendering_context = RenderingContext::new(
+                gpu_context,
+                surface,
+                &texture_layout,
+                &shadow_map_layout,
+                &light_camera_layout,
+            );
             self.world.insert_resource(rendering_context);
 
             self.world.init_resource::<Messages<WindowResizeEvent>>();

@@ -1,7 +1,7 @@
-use crate::ecs::components::{PointLight, Transform};
+use crate::ecs::components::{DirectionalLight, PointLight, Transform};
 use crate::ecs::resources::RenderingContext;
 use crate::ecs::resources::lighting::{
-    GpuPointLight, LightingBuffer, LightingData, MAX_POINT_LIGHTS,
+    GpuDirectionalLight, GpuPointLight, LightingBuffer, LightingData, MAX_POINT_LIGHTS,
 };
 use bevy_ecs::prelude::*;
 use glam::Vec4;
@@ -9,11 +9,12 @@ use glam::Vec4;
 pub fn update_lighting_buffer_system(
     rendering_context: Res<RenderingContext>,
     lighting_buffer: Res<LightingBuffer>,
-    query: Query<(&Transform, &PointLight)>,
+    point_light_query: Query<(&Transform, &PointLight)>,
+    directional_light_query: Query<&DirectionalLight, Without<PointLight>>,
 ) {
     let mut lighting_data = LightingData::default();
 
-    for (i, (transform, light)) in query.iter().enumerate() {
+    for (i, (transform, light)) in point_light_query.iter().enumerate() {
         if i >= MAX_POINT_LIGHTS {
             break;
         }
@@ -32,6 +33,15 @@ pub fn update_lighting_buffer_system(
         };
 
         lighting_data.num_point_lights += 1;
+    }
+
+    if let Some(directional_light) = directional_light_query.iter().next() {
+        lighting_data.directional_light = GpuDirectionalLight {
+            direction: directional_light.direction,
+            _pad0: 0.0,
+            color: directional_light.color,
+            intensity: directional_light.intensity,
+        };
     }
 
     lighting_buffer.update(&rendering_context.gpu, &lighting_data);

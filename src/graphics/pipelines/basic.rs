@@ -5,6 +5,7 @@ use crate::ecs::components::Transform;
 use crate::ecs::resources::AssetManager;
 use crate::ecs::resources::CameraBuffer;
 use crate::ecs::resources::LightingBuffer;
+use crate::ecs::resources::ShadowMap;
 use crate::graphics::core::{GpuContext, RenderPass, RenderPipeline, Shader, Surface};
 use crate::graphics::resources::GpuTexture;
 use bevy_ecs::prelude::*;
@@ -28,6 +29,7 @@ impl BasicPipeline {
         gpu: &GpuContext,
         surface: &Surface,
         texture_layout: &wgpu::BindGroupLayout,
+        shadow_map_layout: &wgpu::BindGroupLayout,
     ) -> Self {
         let device = gpu.device();
         let shader = Shader::from_file(gpu, "src/shaders/basic.wgsl").unwrap();
@@ -70,6 +72,7 @@ impl BasicPipeline {
             .raw_bind_group_layout(&camera_layout)
             .raw_bind_group_layout(texture_layout)
             .raw_bind_group_layout(&lighting_layout)
+            .raw_bind_group_layout(shadow_map_layout)
             .build(gpu)
             .unwrap();
 
@@ -82,12 +85,14 @@ impl BasicPipeline {
         asset_manager: &AssetManager,
         camera_buffer: &CameraBuffer,
         lighting_buffer: &LightingBuffer,
+        shadow_map: &ShadowMap,
         query: Query<(&Transform, &Mesh, &Material)>,
     ) {
         pass.set_pipeline(&self.pipeline);
         pass.set_raw_bind_group(0, &camera_buffer.bind_group, &[]);
         pass.set_bind_group(1, asset_manager.texture_bind_group(), &[]);
-        pass.set_raw_bind_group(2, &lighting_buffer.bind_group, &[]);
+        pass.set_bind_group(2, &lighting_buffer.bind_group, &[]);
+        pass.set_bind_group(3, &shadow_map.bind_group, &[]);
 
         for (transform, mesh, material) in query.iter() {
             let model_matrix = transform.get_matrix();

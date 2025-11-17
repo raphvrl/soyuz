@@ -1,6 +1,12 @@
 use std::sync::Arc;
 use winit::window::Window;
 
+mod shader;
+mod pipeline;
+
+pub use shader::Shader;
+pub use pipeline::RenderPipelineBuilder;
+
 pub struct Context {
     pub surface: wgpu::Surface<'static>,
     pub device: wgpu::Device,
@@ -31,16 +37,14 @@ impl Context {
             .unwrap();
 
         let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    label: Some("Soyuz Device"),
-                    required_features: wgpu::Features::empty(),
-                    required_limits: wgpu::Limits::default(),
-                    experimental_features: wgpu::ExperimentalFeatures::default(),
-                    memory_hints: wgpu::MemoryHints::default(),
-                    trace: wgpu::Trace::default(),
-                },
-            )
+            .request_device(&wgpu::DeviceDescriptor {
+                label: Some("Soyuz Device"),
+                required_features: wgpu::Features::empty(),
+                required_limits: wgpu::Limits::default(),
+                experimental_features: wgpu::ExperimentalFeatures::default(),
+                memory_hints: wgpu::MemoryHints::default(),
+                trace: wgpu::Trace::default(),
+            })
             .await
             .unwrap_or_else(|e| panic!("Failed to request device: {:?}", e));
 
@@ -125,8 +129,11 @@ impl Context {
         output.present();
     }
 
-    pub fn size(&self) -> winit::dpi::PhysicalSize<u32> {
-        self.size
+    pub fn shader(&self, source: &str) -> Shader {
+        Shader::from_wgsl(&self.device, source)
+    }
+
+    pub fn render_pipeline(&self) -> RenderPipelineBuilder<'_> {
+        RenderPipelineBuilder::new(&self.device, self.config.format)
     }
 }
-

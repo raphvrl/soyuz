@@ -8,4 +8,8 @@ soyuz-app = { path = "../soyuz-app" }
 
 [[example]]
 name = "clear"
-path = "clear.rs"
+path = "clear/clear.rs"
+
+[[example]]
+name = "triangle"
+path = "triangle/triangle.rs"

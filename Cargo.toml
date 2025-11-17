@@ -1,0 +1,14 @@
+[workspace]
+members = ["soyuz-app", "soyuz-gfx", "examples"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+[workspace.dependencies]
+log = "0.4.28"
+env_logger = "0.11.8"
+pollster = "0.4.0"
+wgpu = "27.0.1"
+winit = "0.30.12"

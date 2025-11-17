@@ -1,0 +1,11 @@
+[package]
+name = "soyuz-gfx"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+log = { workspace = true }
+wgpu = { workspace = true }
+winit = { workspace = true }
+pollster = { workspace = true }
+

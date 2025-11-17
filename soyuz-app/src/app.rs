@@ -1,0 +1,277 @@
+use std::sync::Arc;
+
+use winit::application::ApplicationHandler;
+use winit::event::WindowEvent;
+use winit::event_loop::{ActiveEventLoop, EventLoop};
+use winit::window::{Window, WindowId};
+
+use soyuz_gfx::Context;
+
+pub trait App: 'static + Sized {
+    fn init(ctx: &mut Context) -> Self;
+
+    fn frame(&mut self, _ctx: &mut Context, _dt: f32) {}
+
+    fn resize(&mut self, ctx: &mut Context, width: u32, height: u32) {
+        ctx.resize(winit::dpi::PhysicalSize::new(width, height));
+    }
+
+    fn key_pressed(&mut self, _ctx: &mut Context, _key: winit::keyboard::KeyCode) {}
+
+    fn key_released(&mut self, _ctx: &mut Context, _key: winit::keyboard::KeyCode) {}
+
+    fn text_input(&mut self, _ctx: &mut Context, _text: &str) {}
+
+    fn mouse_moved(&mut self, _ctx: &mut Context, _x: f64, _y: f64) {}
+
+    fn mouse_pressed(&mut self, _ctx: &mut Context, _button: winit::event::MouseButton) {}
+
+    fn mouse_released(&mut self, _ctx: &mut Context, _button: winit::event::MouseButton) {}
+
+    fn mouse_scrolled(&mut self, _ctx: &mut Context, _delta_x: f32, _delta_y: f32) {}
+
+    fn cursor_entered(&mut self, _ctx: &mut Context) {}
+
+    fn cursor_left(&mut self, _ctx: &mut Context) {}
+
+    fn touch_started(&mut self, _ctx: &mut Context, _id: u64, _x: f64, _y: f64) {}
+
+    fn touch_moved(&mut self, _ctx: &mut Context, _id: u64, _x: f64, _y: f64) {}
+
+    fn touch_ended(&mut self, _ctx: &mut Context, _id: u64, _x: f64, _y: f64) {}
+
+    fn touch_cancelled(&mut self, _ctx: &mut Context, _id: u64, _x: f64, _y: f64) {}
+
+    fn focused(&mut self, _ctx: &mut Context) {}
+
+    fn unfocused(&mut self, _ctx: &mut Context) {}
+
+    fn moved(&mut self, _ctx: &mut Context, _x: i32, _y: i32) {}
+
+    fn scale_factor_changed(&mut self, _ctx: &mut Context, _scale_factor: f64) {}
+
+    fn suspended(&mut self, _ctx: &mut Context) {}
+
+    fn resumed(&mut self, _ctx: &mut Context) {}
+
+    fn cleanup(&mut self, _ctx: &mut Context) {}
+}
+
+struct AppHandler<A: App> {
+    app: Option<A>,
+    context: Option<Context>,
+    window: Option<Arc<Window>>,
+    last_frame: Option<std::time::Instant>,
+    title: String,
+}
+
+impl<A: App> AppHandler<A> {
+    fn new(title: String) -> Self {
+        Self {
+            app: None,
+            context: None,
+            window: None,
+            last_frame: None,
+            title,
+        }
+    }
+}
+
+impl<A: App> ApplicationHandler for AppHandler<A> {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        if self.window.is_none() {
+            let window_attributes =
+                winit::window::Window::default_attributes().with_title(&self.title);
+
+            let window = match event_loop.create_window(window_attributes) {
+                Ok(window) => Arc::new(window),
+                Err(e) => {
+                    log::error!("Failed to create window: {}", e);
+                    event_loop.exit();
+                    return;
+                }
+            };
+
+            self.window = Some(window);
+        }
+
+        if let (Some(app), Some(ctx)) = (self.app.as_mut(), self.context.as_mut()) {
+            app.resumed(ctx);
+        }
+    }
+
+    fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
+        if let (Some(app), Some(ctx)) = (self.app.as_mut(), self.context.as_mut()) {
+            app.suspended(ctx);
+        }
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        _window_id: WindowId,
+        event: WindowEvent,
+    ) {
+        match event {
+            WindowEvent::CloseRequested => {
+                if let (Some(app), Some(ctx)) = (self.app.as_mut(), self.context.as_mut()) {
+                    app.cleanup(ctx);
+                }
+                event_loop.exit();
+            }
+            WindowEvent::Resized(physical_size) => {
+                if let Some(ctx) = self.context.as_mut() {
+                    ctx.resize(physical_size);
+                    if let Some(app) = self.app.as_mut() {
+                        app.resize(ctx, physical_size.width, physical_size.height);
+                    }
+                }
+            }
+            WindowEvent::RedrawRequested => {
+                if self.context.is_none() {
+                    let window = self.window.as_ref().expect("Window should exist");
+                    let context = pollster::block_on(Context::new(window.clone()));
+                    self.context = Some(context);
+
+                    if let Some(ctx) = self.context.as_mut() {
+                        let app = A::init(ctx);
+                        self.app = Some(app);
+                    }
+
+                    if let Some(window) = self.window.as_ref() {
+                        window.request_redraw();
+                    }
+                }
+
+                if let (Some(app), Some(ctx)) = (self.app.as_mut(), self.context.as_mut()) {
+                    let now = std::time::Instant::now();
+                    let dt = if let Some(last_frame) = self.last_frame {
+                        now.duration_since(last_frame).as_secs_f32()
+                    } else {
+                        0.016
+                    };
+                    self.last_frame = Some(now);
+
+                    app.frame(ctx, dt);
+                }
+            }
+
+            WindowEvent::KeyboardInput { event, .. } => {
+                if let (Some(app), Some(ctx)) = (self.app.as_mut(), self.context.as_mut()) {
+                    if let winit::keyboard::PhysicalKey::Code(key_code) = event.physical_key {
+                        if event.state.is_pressed() {
+                            app.key_pressed(ctx, key_code);
+                        } else {
+                            app.key_released(ctx, key_code);
+                        }
+                    }
+                }
+            }
+
+            WindowEvent::Ime(winit::event::Ime::Commit(text)) => {
+                if let (Some(app), Some(ctx)) = (self.app.as_mut(), self.context.as_mut()) {
+                    app.text_input(ctx, &text);
+                }
+            }
+
+            WindowEvent::CursorMoved { position, .. } => {
+                if let (Some(app), Some(ctx)) = (self.app.as_mut(), self.context.as_mut()) {
+                    app.mouse_moved(ctx, position.x, position.y);
+                }
+            }
+
+            WindowEvent::MouseInput { state, button, .. } => {
+                if let (Some(app), Some(ctx)) = (self.app.as_mut(), self.context.as_mut()) {
+                    if state.is_pressed() {
+                        app.mouse_pressed(ctx, button);
+                    } else {
+                        app.mouse_released(ctx, button);
+                    }
+                }
+            }
+
+            WindowEvent::MouseWheel { delta, .. } => {
+                if let (Some(app), Some(ctx)) = (self.app.as_mut(), self.context.as_mut()) {
+                    let (delta_x, delta_y) = match delta {
+                        winit::event::MouseScrollDelta::LineDelta(x, y) => (x, y),
+                        winit::event::MouseScrollDelta::PixelDelta(pos) => {
+                            (pos.x as f32, pos.y as f32)
+                        }
+                    };
+                    app.mouse_scrolled(ctx, delta_x, delta_y);
+                }
+            }
+
+            WindowEvent::CursorEntered { .. } => {
+                if let (Some(app), Some(ctx)) = (self.app.as_mut(), self.context.as_mut()) {
+                    app.cursor_entered(ctx);
+                }
+            }
+
+            WindowEvent::CursorLeft { .. } => {
+                if let (Some(app), Some(ctx)) = (self.app.as_mut(), self.context.as_mut()) {
+                    app.cursor_left(ctx);
+                }
+            }
+
+            WindowEvent::Touch(touch) => {
+                if let (Some(app), Some(ctx)) = (self.app.as_mut(), self.context.as_mut()) {
+                    match touch.phase {
+                        winit::event::TouchPhase::Started => {
+                            app.touch_started(ctx, touch.id, touch.location.x, touch.location.y);
+                        }
+                        winit::event::TouchPhase::Moved => {
+                            app.touch_moved(ctx, touch.id, touch.location.x, touch.location.y);
+                        }
+                        winit::event::TouchPhase::Ended => {
+                            app.touch_ended(ctx, touch.id, touch.location.x, touch.location.y);
+                        }
+                        winit::event::TouchPhase::Cancelled => {
+                            app.touch_cancelled(ctx, touch.id, touch.location.x, touch.location.y);
+                        }
+                    }
+                }
+            }
+
+            WindowEvent::Focused(focused) => {
+                if let (Some(app), Some(ctx)) = (self.app.as_mut(), self.context.as_mut()) {
+                    if focused {
+                        app.focused(ctx);
+                    } else {
+                        app.unfocused(ctx);
+                    }
+                }
+            }
+
+            WindowEvent::Moved(position) => {
+                if let (Some(app), Some(ctx)) = (self.app.as_mut(), self.context.as_mut()) {
+                    app.moved(ctx, position.x, position.y);
+                }
+            }
+
+            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                if let (Some(app), Some(ctx)) = (self.app.as_mut(), self.context.as_mut()) {
+                    app.scale_factor_changed(ctx, scale_factor);
+                }
+            }
+
+            _ => {}
+        }
+    }
+
+    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+        if let Some(window) = self.window.as_ref() {
+            window.request_redraw();
+        }
+    }
+}
+
+pub fn run<A: App>(title: &str) {
+    env_logger::init();
+    log::info!("Starting Soyuz App...");
+
+    let event_loop = EventLoop::new().unwrap();
+    let mut app_handler = AppHandler::<A>::new(title.to_string());
+
+    event_loop.run_app(&mut app_handler).unwrap();
+}

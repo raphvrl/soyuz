@@ -1,0 +1,11 @@
+[package]
+name = "examples"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+soyuz-app = { path = "../soyuz-app" }
+
+[[example]]
+name = "clear"
+path = "clear.rs"

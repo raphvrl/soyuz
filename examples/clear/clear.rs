@@ -19,22 +19,12 @@ impl App for ColorCycleApp {
         let g = ((self.time as f64 * 6.28) + 2.0).sin() * 0.5 + 0.5;
         let b = ((self.time as f64 * 6.28) + 4.0).sin() * 0.5 + 0.5;
 
-        ctx.render(|view, _device, _queue, encoder| {
-            let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Color Cycle Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color { r, g, b, a: 1.0 }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                    depth_slice: None,
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
+        ctx.render(|ctx, view, encoder| {
+            let _render_pass = ctx
+                .render_pass(encoder, view)
+                .clear_rgb(r, g, b)
+                .label("Color Cycle Pass")
+                .begin();
         });
     }
 }

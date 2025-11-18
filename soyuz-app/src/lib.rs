@@ -1,4 +1,4 @@
-pub use soyuz_gfx::Context;
+pub use soyuz_gfx::{Context, RenderPassBuilder};
 
 pub use wgpu;
 pub use winit;

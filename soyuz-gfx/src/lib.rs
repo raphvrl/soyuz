@@ -1,11 +1,13 @@
 use std::sync::Arc;
 use winit::window::Window;
 
-mod shader;
+mod pass;
 mod pipeline;
+mod shader;
 
-pub use shader::Shader;
+pub use pass::RenderPassBuilder;
 pub use pipeline::RenderPipelineBuilder;
+pub use shader::Shader;
 
 pub struct Context {
     pub surface: wgpu::Surface<'static>,
@@ -94,7 +96,7 @@ impl Context {
 
     pub fn render<F>(&mut self, render_fn: F)
     where
-        F: FnOnce(&wgpu::TextureView, &wgpu::Device, &wgpu::Queue, &mut wgpu::CommandEncoder),
+        F: FnOnce(&mut Context, &wgpu::TextureView, &mut wgpu::CommandEncoder),
     {
         let output = match self.surface.get_current_texture() {
             Ok(texture) => texture,
@@ -123,10 +125,18 @@ impl Context {
                 label: Some("Render Encoder"),
             });
 
-        render_fn(&view, &self.device, &self.queue, &mut encoder);
+        render_fn(self, &view, &mut encoder);
 
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
+    }
+
+    pub fn render_pass<'a>(
+        &self,
+        encoder: &'a mut wgpu::CommandEncoder,
+        view: &'a wgpu::TextureView,
+    ) -> RenderPassBuilder<'a> {
+        RenderPassBuilder::new(encoder, view)
     }
 
     pub fn shader(&self, source: &str) -> Shader {

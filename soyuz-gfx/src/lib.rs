@@ -71,8 +71,8 @@ impl Context {
 
         surface.configure(&device, &config);
 
-        log::info!("Soyuz graphics context initialized");
-        log::info!("GPU: {}", adapter.get_info().name);
+        tracing::info!("Soyuz graphics context initialized");
+        tracing::info!("GPU: {}", adapter.get_info().name);
 
         Self {
             surface,
@@ -90,7 +90,7 @@ impl Context {
             self.config.width = new_size.width;
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
-            log::debug!("Surface resized to {}x{}", new_size.width, new_size.height);
+            tracing::debug!("Surface resized to {}x{}", new_size.width, new_size.height);
         }
     }
 
@@ -101,16 +101,16 @@ impl Context {
         let output = match self.surface.get_current_texture() {
             Ok(texture) => texture,
             Err(wgpu::SurfaceError::Lost) => {
-                log::warn!("Surface lost, reconfiguring...");
+                tracing::warn!("Surface lost, reconfiguring...");
                 self.surface.configure(&self.device, &self.config);
                 return;
             }
             Err(wgpu::SurfaceError::OutOfMemory) => {
-                log::error!("Out of memory!");
+                tracing::error!("Out of memory!");
                 panic!("Out of memory!");
             }
             Err(e) => {
-                log::error!("Surface error: {:?}", e);
+                tracing::error!("Surface error: {:?}", e);
                 return;
             }
         };

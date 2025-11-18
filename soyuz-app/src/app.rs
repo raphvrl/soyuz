@@ -86,7 +86,7 @@ impl<A: App> ApplicationHandler for AppHandler<A> {
             let window = match event_loop.create_window(window_attributes) {
                 Ok(window) => Arc::new(window),
                 Err(e) => {
-                    log::error!("Failed to create window: {}", e);
+                    tracing::error!("Failed to create window: {}", e);
                     event_loop.exit();
                     return;
                 }
@@ -267,8 +267,11 @@ impl<A: App> ApplicationHandler for AppHandler<A> {
 }
 
 pub fn run<A: App>(title: &str) {
-    env_logger::init();
-    log::info!("Starting Soyuz App...");
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
+    
+    tracing::info!("Starting Soyuz App...");
 
     let event_loop = EventLoop::new().unwrap();
     let mut app_handler = AppHandler::<A>::new(title.to_string());

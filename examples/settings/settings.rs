@@ -103,4 +103,3 @@ fn main() {
         .size(1280, 720)
         .run::<SettingsDemo>();
 }
-

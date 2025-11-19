@@ -79,7 +79,7 @@ pub struct Context {
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
-    window: Arc<Window>,
+    pub window: Arc<Window>,
 }
 
 impl Context {
@@ -211,10 +211,6 @@ impl Context {
         RenderPipelineBuilder::new(&self.device, self.config.format)
     }
 
-    pub fn window(&self) -> &Arc<Window> {
-        &self.window
-    }
-
     pub fn set_present_mode(&mut self, mode: wgpu::PresentMode) {
         self.config.present_mode = mode;
         self.surface.configure(&self.device, &self.config);
@@ -242,6 +238,18 @@ impl Context {
 
     pub fn is_fullscreen(&self) -> bool {
         self.window.fullscreen().is_some()
+    }
+
+    pub fn width(&self) -> u32 {
+        self.size.width
+    }
+
+    pub fn height(&self) -> u32 {
+        self.size.height
+    }
+
+    pub fn aspect(&self) -> f32 {
+        self.size.width as f32 / self.size.height as f32
     }
 
     pub fn set_window_size(&mut self, width: u32, height: u32) {

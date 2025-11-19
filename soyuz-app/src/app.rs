@@ -593,10 +593,10 @@ impl<A: App> ApplicationHandler for AppHandler<A> {
     }
 }
 
-pub fn new() -> AppBuilder {
+pub fn builder() -> AppBuilder {
     AppBuilder::default()
 }
 
 pub fn run<A: App>(title: &str) {
-    new().title(title).run::<A>();
+    builder().title(title).run::<A>();
 }

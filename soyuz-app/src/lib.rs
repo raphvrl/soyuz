@@ -5,7 +5,7 @@ pub use winit;
 
 pub mod app;
 
-pub use app::{new, run, AppBuilder};
+pub use app::{AppBuilder, builder, run};
 
 pub mod prelude {
     pub use crate::wgpu;
@@ -15,5 +15,5 @@ pub mod prelude {
 
     pub use crate::Context;
     pub use crate::app::*;
-    pub use crate::{new, run, AppBuilder, GraphicsBuilder};
+    pub use crate::{AppBuilder, GraphicsBuilder, builder, run};
 }

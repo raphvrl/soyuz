@@ -1,0 +1,12 @@
+[package]
+name = "soyuz-app"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+winit = { workspace = true }
+pollster = { workspace = true }
+wgpu = { workspace = true }
+soyuz-gfx = { path = "../soyuz-gfx" }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

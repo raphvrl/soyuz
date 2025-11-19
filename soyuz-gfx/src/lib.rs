@@ -9,6 +9,70 @@ pub use pass::RenderPassBuilder;
 pub use pipeline::RenderPipelineBuilder;
 pub use shader::Shader;
 
+#[derive(Debug, Clone)]
+pub struct GraphicsBuilder {
+    pub(crate) required_features: wgpu::Features,
+    pub(crate) required_limits: wgpu::Limits,
+    pub(crate) power_preference: wgpu::PowerPreference,
+    pub(crate) backends: wgpu::Backends,
+    pub(crate) present_mode: wgpu::PresentMode,
+    pub(crate) force_fallback_adapter: bool,
+}
+
+impl Default for GraphicsBuilder {
+    fn default() -> Self {
+        Self {
+            required_features: wgpu::Features::empty(),
+            required_limits: wgpu::Limits::default(),
+            power_preference: wgpu::PowerPreference::default(),
+            backends: wgpu::Backends::DX12 | wgpu::Backends::VULKAN | wgpu::Backends::METAL,
+            present_mode: wgpu::PresentMode::Immediate,
+            force_fallback_adapter: false,
+        }
+    }
+}
+
+impl GraphicsBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn features(mut self, features: wgpu::Features) -> Self {
+        self.required_features = features;
+        self
+    }
+
+    pub fn feature(mut self, feature: wgpu::Features) -> Self {
+        self.required_features |= feature;
+        self
+    }
+
+    pub fn limits(mut self, limits: wgpu::Limits) -> Self {
+        self.required_limits = limits;
+        self
+    }
+
+    pub fn power_preference(mut self, preference: wgpu::PowerPreference) -> Self {
+        self.power_preference = preference;
+        self
+    }
+
+    pub fn backends(mut self, backends: wgpu::Backends) -> Self {
+        self.backends = backends;
+        self
+    }
+
+    pub fn present_mode(mut self, mode: wgpu::PresentMode) -> Self {
+        self.present_mode = mode;
+        self
+    }
+
+    pub fn force_fallback_adapter(mut self, force: bool) -> Self {
+        self.force_fallback_adapter = force;
+        self
+    }
+}
+
 pub struct Context {
     pub surface: wgpu::Surface<'static>,
     pub device: wgpu::Device,
@@ -19,11 +83,11 @@ pub struct Context {
 }
 
 impl Context {
-    pub async fn new(window: Arc<Window>) -> Self {
+    pub async fn new(window: Arc<Window>, graphics: &GraphicsBuilder) -> Self {
         let size = window.inner_size();
 
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::DX12 | wgpu::Backends::VULKAN | wgpu::Backends::METAL,
+            backends: graphics.backends,
             ..Default::default()
         });
 
@@ -31,9 +95,9 @@ impl Context {
 
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::default(),
+                power_preference: graphics.power_preference,
                 compatible_surface: Some(&surface),
-                force_fallback_adapter: false,
+                force_fallback_adapter: graphics.force_fallback_adapter,
             })
             .await
             .unwrap();
@@ -41,8 +105,8 @@ impl Context {
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
                 label: Some("Soyuz Device"),
-                required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::default(),
+                required_features: graphics.required_features,
+                required_limits: graphics.required_limits.clone(),
                 experimental_features: wgpu::ExperimentalFeatures::default(),
                 memory_hints: wgpu::MemoryHints::default(),
                 trace: wgpu::Trace::default(),
@@ -63,7 +127,7 @@ impl Context {
             format: surface_format,
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::Immediate,
+            present_mode: graphics.present_mode,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![],
             desired_maximum_frame_latency: 2,

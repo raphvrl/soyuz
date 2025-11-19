@@ -5,7 +5,7 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::{Window, WindowId};
 
-use soyuz_gfx::Context;
+use soyuz_gfx::{Context, GraphicsBuilder};
 
 pub trait App: 'static + Sized {
     /// Initializes the application with the graphics context.
@@ -272,22 +272,111 @@ pub trait App: 'static + Sized {
     fn cleanup(&mut self, _ctx: &mut Context) {}
 }
 
+#[derive(Debug, Clone)]
+pub struct AppBuilder {
+    title: String,
+    size: Option<winit::dpi::LogicalSize<u32>>,
+    min_size: Option<winit::dpi::LogicalSize<u32>>,
+    max_size: Option<winit::dpi::LogicalSize<u32>>,
+    resizable: bool,
+    fullscreen: bool,
+    maximized: bool,
+    graphics: GraphicsBuilder,
+}
+
+impl Default for AppBuilder {
+    fn default() -> Self {
+        Self {
+            title: "Soyuz App".to_string(),
+            size: None,
+            min_size: None,
+            max_size: None,
+            resizable: true,
+            fullscreen: false,
+            maximized: false,
+            graphics: GraphicsBuilder::default(),
+        }
+    }
+}
+
+impl AppBuilder {
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = title.into();
+        self
+    }
+
+    pub fn size(mut self, width: u32, height: u32) -> Self {
+        self.size = Some(winit::dpi::LogicalSize::new(width, height));
+        self
+    }
+
+    pub fn min_size(mut self, width: u32, height: u32) -> Self {
+        self.min_size = Some(winit::dpi::LogicalSize::new(width, height));
+        self
+    }
+
+    pub fn max_size(mut self, width: u32, height: u32) -> Self {
+        self.max_size = Some(winit::dpi::LogicalSize::new(width, height));
+        self
+    }
+
+    pub fn resizable(mut self, resizable: bool) -> Self {
+        self.resizable = resizable;
+        self
+    }
+
+    pub fn fullscreen(mut self, fullscreen: bool) -> Self {
+        self.fullscreen = fullscreen;
+        self
+    }
+
+    pub fn maximized(mut self, maximized: bool) -> Self {
+        self.maximized = maximized;
+        self
+    }
+
+    pub fn graphics(&mut self) -> &mut GraphicsBuilder {
+        &mut self.graphics
+    }
+
+    pub fn with_graphics<F>(mut self, f: F) -> Self
+    where
+        F: FnOnce(&mut GraphicsBuilder),
+    {
+        f(&mut self.graphics);
+        self
+    }
+
+    pub fn run<A: App>(self) {
+        tracing_subscriber::fmt()
+            .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+            .init();
+
+        tracing::info!("Starting Soyuz App...");
+
+        let event_loop = EventLoop::new().unwrap();
+        let mut app_handler = AppHandler::<A>::new(self);
+
+        event_loop.run_app(&mut app_handler).unwrap();
+    }
+}
+
 struct AppHandler<A: App> {
     app: Option<A>,
     context: Option<Context>,
     window: Option<Arc<Window>>,
     last_frame: Option<std::time::Instant>,
-    title: String,
+    config: AppBuilder,
 }
 
 impl<A: App> AppHandler<A> {
-    fn new(title: String) -> Self {
+    fn new(config: AppBuilder) -> Self {
         Self {
             app: None,
             context: None,
             window: None,
             last_frame: None,
-            title,
+            config,
         }
     }
 }
@@ -295,8 +384,30 @@ impl<A: App> AppHandler<A> {
 impl<A: App> ApplicationHandler for AppHandler<A> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.window.is_none() {
-            let window_attributes =
-                winit::window::Window::default_attributes().with_title(&self.title);
+            let mut window_attributes = winit::window::Window::default_attributes()
+                .with_title(&self.config.title)
+                .with_resizable(self.config.resizable);
+
+            if let Some(size) = self.config.size {
+                window_attributes = window_attributes.with_inner_size(size);
+            }
+
+            if let Some(min_size) = self.config.min_size {
+                window_attributes = window_attributes.with_min_inner_size(min_size);
+            }
+
+            if let Some(max_size) = self.config.max_size {
+                window_attributes = window_attributes.with_max_inner_size(max_size);
+            }
+
+            if self.config.maximized {
+                window_attributes = window_attributes.with_maximized(true);
+            }
+
+            if self.config.fullscreen {
+                window_attributes = window_attributes
+                    .with_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
+            }
 
             let window = match event_loop.create_window(window_attributes) {
                 Ok(window) => Arc::new(window),
@@ -345,7 +456,8 @@ impl<A: App> ApplicationHandler for AppHandler<A> {
             WindowEvent::RedrawRequested => {
                 if self.context.is_none() {
                     let window = self.window.as_ref().expect("Window should exist");
-                    let context = pollster::block_on(Context::new(window.clone()));
+                    let context =
+                        pollster::block_on(Context::new(window.clone(), &self.config.graphics));
                     self.context = Some(context);
 
                     if let Some(ctx) = self.context.as_mut() {
@@ -373,13 +485,14 @@ impl<A: App> ApplicationHandler for AppHandler<A> {
 
             WindowEvent::KeyboardInput { event, .. } => {
                 if let (Some(app), Some(ctx)) = (self.app.as_mut(), self.context.as_mut())
-                    && let winit::keyboard::PhysicalKey::Code(key_code) = event.physical_key {
-                        if event.state.is_pressed() {
-                            app.key_pressed(ctx, key_code);
-                        } else {
-                            app.key_released(ctx, key_code);
-                        }
+                    && let winit::keyboard::PhysicalKey::Code(key_code) = event.physical_key
+                {
+                    if event.state.is_pressed() {
+                        app.key_pressed(ctx, key_code);
+                    } else {
+                        app.key_released(ctx, key_code);
                     }
+                }
             }
 
             WindowEvent::Ime(winit::event::Ime::Commit(text)) => {
@@ -480,15 +593,10 @@ impl<A: App> ApplicationHandler for AppHandler<A> {
     }
 }
 
+pub fn new() -> AppBuilder {
+    AppBuilder::default()
+}
+
 pub fn run<A: App>(title: &str) {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
-
-    tracing::info!("Starting Soyuz App...");
-
-    let event_loop = EventLoop::new().unwrap();
-    let mut app_handler = AppHandler::<A>::new(title.to_string());
-
-    event_loop.run_app(&mut app_handler).unwrap();
+    new().title(title).run::<A>();
 }

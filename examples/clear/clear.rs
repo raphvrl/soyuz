@@ -1,5 +1,7 @@
 use soyuz_app::prelude::*;
 
+use std::f64::consts::TAU;
+
 struct ColorCycleApp {
     time: f32,
 }
@@ -15,9 +17,11 @@ impl App for ColorCycleApp {
             self.time = 0.0;
         }
 
-        let r = (self.time as f64 * 6.28).sin() * 0.5 + 0.5;
-        let g = ((self.time as f64 * 6.28) + 2.0).sin() * 0.5 + 0.5;
-        let b = ((self.time as f64 * 6.28) + 4.0).sin() * 0.5 + 0.5;
+        let t = self.time as f64 * TAU;
+
+        let r = t.sin() * 0.5 + 0.5;
+        let g = (t + 2.0).sin() * 0.5 + 0.5;
+        let b = (t + 4.0).sin() * 0.5 + 0.5;
 
         ctx.render(|ctx, view, encoder| {
             let _render_pass = ctx

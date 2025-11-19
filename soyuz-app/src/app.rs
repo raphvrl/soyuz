@@ -372,15 +372,14 @@ impl<A: App> ApplicationHandler for AppHandler<A> {
             }
 
             WindowEvent::KeyboardInput { event, .. } => {
-                if let (Some(app), Some(ctx)) = (self.app.as_mut(), self.context.as_mut()) {
-                    if let winit::keyboard::PhysicalKey::Code(key_code) = event.physical_key {
+                if let (Some(app), Some(ctx)) = (self.app.as_mut(), self.context.as_mut())
+                    && let winit::keyboard::PhysicalKey::Code(key_code) = event.physical_key {
                         if event.state.is_pressed() {
                             app.key_pressed(ctx, key_code);
                         } else {
                             app.key_released(ctx, key_code);
                         }
                     }
-                }
             }
 
             WindowEvent::Ime(winit::event::Ime::Commit(text)) => {

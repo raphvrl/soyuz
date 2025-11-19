@@ -13,3 +13,7 @@ path = "clear/clear.rs"
 [[example]]
 name = "triangle"
 path = "triangle/triangle.rs"
+
+[[example]]
+name = "settings"
+path = "settings/settings.rs"

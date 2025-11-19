@@ -79,7 +79,7 @@ pub struct Context {
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
-    _window: Arc<Window>,
+    pub window: Arc<Window>,
 }
 
 impl Context {
@@ -144,7 +144,7 @@ impl Context {
             queue,
             config,
             size,
-            _window: window,
+            window,
         }
     }
 
@@ -209,5 +209,88 @@ impl Context {
 
     pub fn render_pipeline(&self) -> RenderPipelineBuilder<'_> {
         RenderPipelineBuilder::new(&self.device, self.config.format)
+    }
+
+    pub fn set_present_mode(&mut self, mode: wgpu::PresentMode) {
+        self.config.present_mode = mode;
+        self.surface.configure(&self.device, &self.config);
+        tracing::info!("Present mode changed to {:?}", mode);
+    }
+
+    pub fn present_mode(&self) -> wgpu::PresentMode {
+        self.config.present_mode
+    }
+
+    pub fn set_fullscreen(&self, fullscreen: bool) {
+        if fullscreen {
+            self.window
+                .set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
+        } else {
+            self.window.set_fullscreen(None);
+        }
+        tracing::info!("Fullscreen mode: {}", fullscreen);
+    }
+
+    pub fn toggle_fullscreen(&self) {
+        let is_fullscreen = self.window.fullscreen().is_some();
+        self.set_fullscreen(!is_fullscreen);
+    }
+
+    pub fn is_fullscreen(&self) -> bool {
+        self.window.fullscreen().is_some()
+    }
+
+    pub fn width(&self) -> u32 {
+        self.size.width
+    }
+
+    pub fn height(&self) -> u32 {
+        self.size.height
+    }
+
+    pub fn aspect(&self) -> f32 {
+        self.size.width as f32 / self.size.height as f32
+    }
+
+    pub fn set_window_size(&mut self, width: u32, height: u32) {
+        let new_size = winit::dpi::PhysicalSize::new(width, height);
+        let _ = self.window.request_inner_size(new_size);
+        tracing::info!("Requested window size: {}x{}", width, height);
+    }
+
+    pub fn set_maximized(&self, maximized: bool) {
+        self.window.set_maximized(maximized);
+    }
+
+    pub fn is_maximized(&self) -> bool {
+        self.window.is_maximized()
+    }
+
+    pub fn set_title(&self, title: &str) {
+        self.window.set_title(title);
+    }
+
+    pub fn set_resizable(&self, resizable: bool) {
+        self.window.set_resizable(resizable);
+    }
+
+    pub fn set_min_size(&self, width: u32, height: u32) {
+        self.window
+            .set_min_inner_size(Some(winit::dpi::LogicalSize::new(width, height)));
+    }
+
+    pub fn set_max_size(&self, width: u32, height: u32) {
+        self.window
+            .set_max_inner_size(Some(winit::dpi::LogicalSize::new(width, height)));
+    }
+
+    pub fn clear_min_size(&self) {
+        self.window
+            .set_min_inner_size(None::<winit::dpi::LogicalSize<u32>>);
+    }
+
+    pub fn clear_max_size(&self) {
+        self.window
+            .set_max_inner_size(None::<winit::dpi::LogicalSize<u32>>);
     }
 }
